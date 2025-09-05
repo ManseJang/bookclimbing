@@ -1,5 +1,5 @@
 # 북클라이밍 - 독서의 정상에 도전하라 – 2025-05-08
-# rev.OCT-03-FIX-DASHBOARD (fix: st.markdown typo)
+# rev.OCT-08: VOCAB-SEPARATOR + VOCAB-NOTE + RENAME-RESET-BUTTONS
 import streamlit as st, requests, re, json, base64, time, mimetypes, uuid, datetime, random, os, io, sqlite3
 import pandas as pd
 from collections import Counter
@@ -7,36 +7,11 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 
 # ───── API 키 ─────
-OPENAI_API_KEY      = st.secrets["OPENAI_API_KEY"]
-NAVER_CLIENT_ID     = st.secrets["NAVER_CLIENT_ID"]
-NAVER_CLIENT_SECRET = st.secrets["NAVER_CLIENT_SECRET"]
-NAVER_OCR_SECRET    = st.secrets.get("NAVER_OCR_SECRET","")
+OPENAI_API_KEY       = st.secrets["OPENAI_API_KEY"]
+NAVER_CLIENT_ID      = st.secrets["NAVER_CLIENT_ID"]
+NAVER_CLIENT_SECRET  = st.secrets["NAVER_CLIENT_SECRET"]
+NAVER_OCR_SECRET     = st.secrets.get("NAVER_OCR_SECRET","")
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-# ───── 공통 테마 (항상 라이트 모드 + 사이드바 연한 회색) ─────
-THEME_CSS = """
-<style>
-html { color-scheme: light !important; }
-:root{
-  --bg:#ffffff;           --sidebar-bg:#f6f7fb;
-  --card:#ffffff;         --text:#0b1220; --muted:#4b5563; --ring:#e5e7eb;
-  --btn-bg:#fef08a;       --btn-text:#0b1220; --btn-bg-hover:#fde047;
-  --chip:#eef2ff;         --chip-text:#1f2937;
-}
-html, body { background: var(--bg) !important; }
-section.main > div.block-container{ background: var(--card); border-radius: 14px; padding: 18px 22px; box-shadow: 0 2px 16px rgba(0,0,0,.04); }
-h1,h2,h3,h4,h5{ color:var(--text) !important; font-weight:800 } p, label, span, div{ color:var(--text) }
-div[data-testid="stSidebar"]{ background: var(--sidebar-bg)!important; border-right:1px solid var(--ring)!important; box-shadow: inset -1px 0 0 rgba(0,0,0,.02); }
-.sidebar-radio [data-baseweb="radio"]>div{ border:1px solid var(--ring); border-radius:12px; padding:8px 12px; margin:6px 0; background:var(--chip); color:var(--chip-text);}
-input, textarea, .stTextInput input, .stTextArea textarea{ color:var(--text)!important; background:#f5f7fb!important; border:1px solid var(--ring)!important; border-radius:10px!important; }
-.stButton>button, .stDownloadButton>button{ background:var(--btn-bg)!important; color:var(--btn-text)!important; border:1px solid rgba(0,0,0,.08)!important; border-radius:12px!important;
-  padding:10px 16px!important; font-weight:800!important; box-shadow:0 6px 16px rgba(0,0,0,.08)!important; transition:all .15s ease;}
-.stButton>button:hover{ background:var(--btn-bg-hover)!important; transform:translateY(-1px) }
-a.linklike-btn{ display:inline-block; text-decoration:none; background:var(--btn-bg); color:var(--btn-text)!important; padding:10px 16px; border-radius:12px; font-weight:800; border:1px solid rgba(0,0,0,.08); }
-.badge{display:inline-block; padding:4px 10px; border-radius:999px; background:var(--chip); color:var(--chip-text); font-size:0.85rem;}
-hr{ border:0; height:1px; background:var(--ring); }
-</style>
-"""
 
 # ───── 유틸 ─────
 def clean_html(t): return re.sub(r"<.*?>","",t or "")
@@ -51,6 +26,35 @@ def to_data_url(url):
             return f"data:{mime};base64,{base64.b64encode(r.content).decode()}"
         except Exception as e:
             st.warning(f"표지 다운로드 재시도… ({e})"); time.sleep(2)
+
+# ───── 테마 & 글씨 크기 ─────
+FONT_SIZES = {"작게":"14px","보통":"16px","크게":"18px"}
+def theme_css(font_px="16px"):
+    return f"""
+<style>
+html {{ color-scheme: light !important; }}
+:root{{
+  --bg:#ffffff;           --sidebar-bg:#f6f7fb;
+  --card:#ffffff;         --text:#0b1220; --muted:#4b5563; --ring:#e5e7eb;
+  --btn-bg:#fef08a;       --btn-text:#0b1220; --btn-bg-hover:#fde047;
+  --chip:#eef2ff;         --chip-text:#1f2937;
+  --fs-base:{font_px};
+}}
+html, body {{ background: var(--bg) !important; font-size: var(--fs-base); }}
+section.main > div.block-container{{ background: var(--card); border-radius: 14px; padding: 18px 22px; box-shadow: 0 2px 16px rgba(0,0,0,.04); }}
+h1,h2,h3,h4,h5{{ color:var(--text) !important; font-weight:800 }}
+p, label, span, div{{ color:var(--text) }}
+div[data-testid="stSidebar"]{{ background: var(--sidebar-bg)!important; border-right:1px solid var(--ring)!important; box-shadow: inset -1px 0 0 rgba(0,0,0,.02); }}
+.sidebar-radio [data-baseweb="radio"]>div{{ border:1px solid var(--ring); border-radius:12px; padding:8px 12px; margin:6px 0; background:var(--chip); color:var(--chip-text);}}
+input, textarea, .stTextInput input, .stTextArea textarea{{ color:var(--text)!important; background:#f5f7fb!important; border:1px solid var(--ring)!important; border-radius:10px!important; }}
+.stButton>button, .stDownloadButton>button{{ background:var(--btn-bg)!important; color:var(--btn-text)!important; border:1px solid rgba(0,0,0,.08)!important; border-radius:12px!important;
+  padding:10px 16px!important; font-weight:800!important; box-shadow:0 6px 16px rgba(0,0,0,.08)!important; transition:all .15s ease;}}
+.stButton>button:hover{{ background:var(--btn-bg-hover)!important; transform:translateY(-1px) }}
+a.linklike-btn{{ display:inline-block; text-decoration:none; background:var(--btn-bg); color:var(--btn-text)!important; padding:10px 16px; border-radius:12px; font-weight:800; border:1px solid rgba(0,0,0,.08); }}
+.badge{{display:inline-block; padding:4px 10px; border-radius:999px; background:var(--chip); color:var(--chip-text); font-size:0.85rem;}}
+hr{{ border:0; height:1px; background:var(--ring); }}
+</style>
+"""
 
 # ───── 안전(19금 차단 + 비속어 필터) ─────
 ADULT_PATTERNS = [r"\b19\s*금\b","청소년\s*이용\s*불가","성인","야설","에로","포르노","노출","선정적","음란","야한","Adult","Erotic","Porn","R-?rated","BL\s*성인","성(관계|행위|묘사)","무삭제\s*판","금서\s*해제"]
@@ -134,7 +138,7 @@ def render_img_percent(path:str, percent:float=0.7):
     mime=mimetypes.guess_type(path)[0] or "image/png"
     st.markdown(f'<p style="text-align:center;"><img src="data:{mime};base64,{b64}" style="width:{int(percent*100)}%; border-radius:12px;"/></p>',unsafe_allow_html=True)
 
-# ───── 토론 주제 추천(질문형 금지 + 종결 형태 보정) ─────
+# ───── 토론 주제 추천 ─────
 def _normalize_topic_form(s: str, prefer_ought: bool = False) -> str:
     s = (s or "").strip()
     s = re.sub(r"[?？]+$", "", s)
@@ -165,7 +169,7 @@ def recommend_topics(title, syn, level, avoid:list, tries=2):
             return [_normalize_topic_form(arr[0], False), _normalize_topic_form(arr[1], True)]
     return ["약속을 지켜야 한다.", "힘들 때는 도움을 요청하는 것이 옳다."]
 
-# ───── 관련있는 낱말(동의어·반의어·뜻·예문) ─────
+# ───── 관련있는 낱말 ─────
 def related_words(word:str, level:str)->dict:
     prompt=(f"단어 '{word}'와 **관련있는 낱말**을 초등학생 {level} 눈높이에 맞춰 JSON으로만 출력.\n"
             "키는 꼭 다음을 사용: {\"meaning\":\"쉬운뜻1문장\",\"synonyms\":[...5~8...],\"antonyms\":[...5~8...],\"examples\":[\"문장1\",\"문장2\"]}")
@@ -189,7 +193,7 @@ def build_debate_txt_bytes(title:str, topic:str, user_side:str, transcript:list,
     txt+="[총평]\n"+(feedback_text or "")+"\n\n[토론 로그]\n"+"\n".join(transcript)
     return txt.encode("utf-8"), "text/plain", "debate_record.txt"
 
-# ───── 데이터 저장/불러오기 (SQLite + 스키마 마이그레이션) ─────
+# ───── 데이터 (SQLite) ─────
 DB_PATH = "classdb.db"
 def _sqlite_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -246,6 +250,14 @@ def db_dashboard(year=None, school=None, grade=None, klass=None, number=None):
 
 # ───── 학생 식별 정보 입력 (사이드바) ─────
 def student_panel():
+    if "ui_font_size_choice" not in st.session_state:
+        st.session_state["ui_font_size_choice"] = "보통"
+
+    st.markdown("#### 🅰️ 글씨 크기")
+    st.radio("글씨 크기 선택", ["작게","보통","크게"],
+             key="ui_font_size_choice", horizontal=True, label_visibility="collapsed")
+    st.divider()
+
     st.markdown("#### 👤 학생 정보")
     with st.form("student_form"):
         col1, col2 = st.columns(2)
@@ -275,7 +287,8 @@ def page_book():
         l,c,r=st.columns([0.15,0.70,0.15]); 
         with c: render_img_percent(intro_path,0.70)
     st.header("📘 1) 책검색 및 표지대화")
-    if st.sidebar.button("페이지 초기화"): st.session_state.clear(); st.rerun()
+    # 이름 변경: 페이지 초기화 → 활동 다시하기
+    if st.sidebar.button("활동 다시하기"): st.session_state.clear(); st.rerun()
 
     q=st.text_input("책 제목·키워드")
     if st.button("🔍 검색") and q.strip():
@@ -331,29 +344,35 @@ def page_vocab():
     st.markdown(f"**책 제목:** {title}  &nbsp;&nbsp; <span class='badge'>난이도: {st.session_state.level}</span>", unsafe_allow_html=True)
 
     word = st.text_input("궁금한 단어", value=st.session_state.get("word",""))
-    c1, c2 = st.columns([1,2])
-    with c1:
-        if st.button("🔎 뜻과 예시 보기", key="see_meaning"):
-            if not word.strip(): st.warning("단어를 입력하세요.")
-            elif contains_bad_language(word):
-                st.warning("바르고 고운말을 사용해 주세요 😊"); st.info(rewrite_polite(word))
-            else:
-                req=(f"초등학생 {st.session_state.level} 수준으로 '{word}'를 설명해줘. "
-                     f"1) 쉬운 뜻 1줄  2) 사용 예시 2가지(각 1문장). 어려운 한자어는 쉬운 말로.")
-                st.session_state.vocab_meaning = gpt([{"role":"user","content":req}],0.3,380)
-    with c2:
-        if st.button("🪄 관련있는 낱말 (동의어·반의어·예문)", key="btn_rel"):
-            if not word.strip(): st.warning("단어를 먼저 입력하세요.")
-            else:
-                st.session_state.rel_out = related_words(word, st.session_state.level)
-                st.session_state.word = word
+    if st.button("🧠 단어 알아보기"):
+        if not word.strip(): st.warning("단어를 입력하세요.")
+        elif contains_bad_language(word):
+            st.warning("바르고 고운말을 사용해 주세요 😊"); st.info(rewrite_polite(word))
+        else:
+            req=(f"초등학생 {st.session_state.level} 수준으로 '{word}'를 설명해줘. "
+                 f"1) 쉬운 뜻 1줄  2) 사용 예시 2가지(각 1문장). 어려운 한자어는 쉬운 말로.")
+            st.session_state.vocab_meaning = gpt([{"role":"user","content":req}],0.3,380)
+            st.session_state.rel_out = related_words(word, st.session_state.level)
+            st.session_state.word = word
 
     if st.session_state.get("vocab_meaning"):
-        st.markdown("#### 뜻과 예시"); st.write(st.session_state.vocab_meaning)
+        st.markdown("#### 뜻과 예시")
+        st.write(st.session_state.vocab_meaning)
+
+        # ★ 구분선 추가
+        st.divider()
 
     if st.session_state.get("rel_out"):
         rel=st.session_state.rel_out
-        st.markdown("#### 관련있는 낱말")
+
+        # ★ 제목 옆 유의사항 표시(옅은 회색 작은 글씨)
+        st.markdown(
+            "#### 관련있는 낱말 "
+            "<span style='font-size:0.9rem;color:#4b5563;'>"
+            "유의사항: 학생이 검색한 단어중 최대한 유사한 단어 및 반대되는 단어를 보여줍니다."
+            "</span>",
+            unsafe_allow_html=True
+        )
         cL, cR = st.columns(2)
         with cL:
             st.markdown("**비슷한 말(동의어)**")
@@ -381,39 +400,52 @@ def page_quiz():
     title=clean_html(st.session_state.selected_book["title"]); syn=st.session_state.synopsis
     st.markdown(f"**책 제목:** {title}  &nbsp;&nbsp; <span class='badge'>난이도: {st.session_state.level}</span>", unsafe_allow_html=True)
     lv=st.session_state.level; lvp=level_params(lv)
+
+    if "ans_uid" not in st.session_state: st.session_state.ans_uid = 0
+    uid = st.session_state.ans_uid
+
     if "quiz" not in st.session_state and st.button("🧠 퀴즈 생성"):
         style={"쉬움":"쉽고 명확, 지문 그대로","기본":"핵심 사건 이해","심화":"추론/관계"}[lv]
         raw=gpt([{"role":"user","content":f"책 '{title}' 줄거리 기반 5문항 4지선다 JSON. question/options(4)/correct_answer(1~4). 난이도:{lv}, 스타일:{style}. 정답 번호 분포 고르게.\n\n줄거리:\n{syn}"}],lvp['temp'],900)
         q=make_quiz(raw)
         if q: st.session_state.quiz=q
         else: st.error("형식 오류, 다시 생성"); st.code(raw)
+
     if q:=st.session_state.get("quiz"):
         if "answers" not in st.session_state: st.session_state.answers={}
         for i,qa in enumerate(q):
             st.markdown(f"**문제 {i+1}.** {qa['question']}")
-            pick=st.radio("",qa["options"],index=None,key=f"ans{i}")
-            if pick is not None: st.session_state.answers[i]=qa["options"].index(pick)+1
-            elif i in st.session_state.answers: del st.session_state.answers[i]
-        if st.button("📊 채점"):
-            miss=[i+1 for i in range(5) if i not in st.session_state.answers]
-            if miss: st.error(f"{miss}번 문제 선택 안함"); return
-            correct=[st.session_state.answers[i]==q[i]["correct_answer"] for i in range(5)]
-            score=sum(correct)*20
-            st.subheader("결과")
-            for i,ok in enumerate(correct,1):
-                st.write(f"문제 {i}: {'⭕' if ok else '❌'} (정답: {q[i-1]['options'][q[i-1]['correct_answer']-1]})")
-            st.write(f"**총점: {score} / 100**")
-            guide="아주 쉽게" if lv=="쉬움" else ("근거 인용과 함께" if lv=="심화" else "핵심 이유 중심")
-            explain=gpt([{"role":"user","content":"다음 JSON으로 각 문항 해설과 총평을 한국어로 작성. 난이도:"+lv+" "+guide+".\n"+json.dumps({"quiz":q,"student_answers":st.session_state.answers},ensure_ascii=False)}],lvp['temp'],lvp['explain_len'])
-            st.write(explain)
-            if st.session_state.get("student_id"):
-                db_save_event(st.session_state.student_id,"quiz",{
-                    "title": title, "score": score, "correct": correct, "level": st.session_state.level
-                })
+            pick=st.radio("",qa["options"],index=None,key=f"ans-{uid}-{i}")
+            if pick is not None:
+                st.session_state.answers[i]=qa["options"].index(pick)+1
+        c1,c2=st.columns([1,1])
+        with c1:
+            if st.button("📊 채점"):
+                miss=[i+1 for i in range(5) if i not in st.session_state.answers]
+                if miss: st.error(f"{miss}번 문제 선택 안함"); return
+                correct=[st.session_state.answers[i]==q[i]["correct_answer"] for i in range(5)]
+                score=sum(correct)*20
+                st.subheader("결과")
+                for i,ok in enumerate(correct,1):
+                    st.write(f"문제 {i}: {'⭕' if ok else '❌'} (정답: {q[i-1]['options'][q[i-1]['correct_answer']-1]})")
+                st.write(f"**총점: {score} / 100**")
+                guide="아주 쉽게" if lv=="쉬움" else ("근거 인용과 함께" if lv=="심화" else "핵심 이유 중심")
+                explain=gpt([{"role":"user","content":"다음 JSON으로 각 문항 해설과 총평을 한국어로 작성. 난이도:"+lv+" "+guide+".\n"+json.dumps({"quiz":q,"student_answers":st.session_state.answers},ensure_ascii=False)}],lvp['temp'],lvp['explain_len'])
+                st.write(explain)
+                if st.session_state.get("student_id"):
+                    db_save_event(st.session_state.student_id,"quiz",{
+                        "title": title, "score": score, "correct": correct, "level": st.session_state.level
+                    })
+        with c2:
+            if st.button("🔁 다시 도전하기"):
+                st.session_state.answers={}
+                st.session_state.ans_uid = uid + 1
+                st.experimental_rerun()
+
     if st.button("다음 단계 ▶ 4) 독서 토론"):
         st.session_state.current_page="독서 토론"; st.rerun()
 
-# ───── PAGE 4 : 독서 토론 ─────
+# ───── PAGE 4 : 독서 토론 (텍스트 전용) ─────
 def page_discussion():
     st.header("⚖️ 4) 독서 토론")
     if "selected_book" not in st.session_state:
@@ -422,6 +454,7 @@ def page_discussion():
         return
     if st.sidebar.button("토론 초기화"):
         for k in ("debate_started","debate_round","debate_chat","debate_topic","debate_eval","user_side","bot_side","topics","topic_choice","score_json","user_feedback_text"): st.session_state.pop(k,None); st.rerun()
+
     title=clean_html(st.session_state.selected_book["title"]); syn=st.session_state.synopsis
     st.markdown(f"**책 제목:** {title}  &nbsp;&nbsp; <span class='badge'>난이도: {st.session_state.level}</span>", unsafe_allow_html=True)
     lv=st.session_state.level; lvp=level_params(lv)
@@ -466,8 +499,9 @@ def page_discussion():
             step=order[rd-1]
             st.markdown(f"### 현재: {lbl[step]}")
             user_turn=((step%2==1 and st.session_state.user_side=="찬성") or (step%2==0 and st.session_state.user_side=="반대"))
+
             if user_turn:
-                txt=st.chat_input("내 발언")
+                txt = st.chat_input("내 발언")
                 if txt:
                     if contains_bad_language(txt):
                         st.warning("바르고 고운말을 사용해 주세요. 아래처럼 바꿔 볼까요?"); st.info(rewrite_polite(txt))
@@ -526,7 +560,7 @@ def page_discussion():
                 data, mime, fname = build_debate_txt_bytes(title, st.session_state.debate_topic, st.session_state.user_side, transcript, score, st.session_state.get("user_feedback_text",""))
                 st.download_button("🧾 토론 기록 TXT 저장", data=data, file_name=fname, mime=mime, key="debate_txt_dl")
 
-# ───── PAGE 5 : 감상문 피드백 ─────
+# ───── PAGE 5 : 감상문 피드백 (STT 없음) ─────
 def page_feedback():
     st.header("🎤 5) 독서감상문 피드백")
     if st.sidebar.button("피드백 초기화"): st.session_state.pop("essay",""); st.session_state.pop("ocr_file",""); st.rerun()
@@ -534,9 +568,11 @@ def page_feedback():
         title=clean_html(st.session_state.selected_book["title"]); syn=st.session_state.synopsis
         st.markdown(f"**책:** {title}  &nbsp;&nbsp; <span class='badge'>난이도: {st.session_state.level}</span>", unsafe_allow_html=True)
     else: title="제목 없음"; syn=""
+
     up=st.file_uploader("손글씨 사진 업로드",type=["png","jpg","jpeg"])
     if up and st.session_state.get("ocr_file")!=up.name:
         st.session_state.essay=nv_ocr(up.read()); st.session_state.ocr_file=up.name; st.rerun()
+
     essay=st.text_area("감상문 입력 또는 OCR 결과", value=st.session_state.get("essay",""), key="essay", height=240)
     if st.button("🧭 피드백 받기"):
         if not essay.strip(): st.error("감상문을 입력하거나 업로드하세요"); return
@@ -550,9 +586,6 @@ def page_feedback():
             db_save_event(st.session_state.student_id,"essay",{
                 "title": title, "essay": essay, "feedback": fb, "level": st.session_state.level
             })
-    st.markdown("---")
-    try: st.link_button("🌐 독서감상문 공유", "http://wwww.example.com")
-    except Exception: st.markdown('<a class="linklike-btn" href="http://wwww.example.com" target="_blank">🌐 독서감상문 공유</a>', unsafe_allow_html=True)
 
 # ───── PAGE 6 : 포트폴리오 & 대시보드 ─────
 def page_portfolio_dashboard():
@@ -584,7 +617,6 @@ def page_portfolio_dashboard():
         st.bar_chart(pie_df.set_index("활동"))
         if quiz_scores:
             st.markdown("**퀴즈 점수 분포**"); st.area_chart(pd.DataFrame({"score":quiz_scores})["score"])
-        # 월별 '독서 수(책 선택 수)' 막대그래프
         book_df = df[df["page"]=="book"].copy()
         if not book_df.empty:
             book_df["month"]=pd.to_datetime(book_df["ts"]).dt.to_period("M").astype(str)
@@ -618,20 +650,19 @@ def page_portfolio_dashboard():
         st.markdown("**최근 토론 주제**: " + str(last.get("topic","-")))
         st.markdown("**토론 로그**"); st.text("\n".join(last.get("transcript",[])))
         st.markdown("**토론 피드백**"); st.write(last.get("feedback",""))
-    erows=list(sdf[sdf["page"]=="essay"]["payload"])
-    if erows:
-        last=erows[-1]
-        st.markdown("**최근 감상문**"); st.write(last.get("essay",""))
-        st.markdown("**감상문 피드백**"); st.write(last.get("feedback",""))  # ← FIXED
 
 # ───── MAIN ─────
 def main():
     st.set_page_config("북클라이밍","📚",layout="wide")
-    st.markdown(THEME_CSS, unsafe_allow_html=True)
+    font_choice = st.session_state.get("ui_font_size_choice","보통")
+    st.markdown(theme_css(FONT_SIZES.get(font_choice,"16px")), unsafe_allow_html=True)
     st.title("북클라이밍: 독서의 정상에 도전하라")
+
     if "current_page" not in st.session_state: st.session_state.current_page="책 검색"
     if "level" not in st.session_state: st.session_state.level="기본"
+
     with st.sidebar:
+        st.link_button("ℹ️ 프로그램 사용법", "https://www.canva.com")
         student_panel()
         st.markdown("### 메뉴")
         menu_labels={
@@ -649,7 +680,16 @@ def main():
                      label_visibility="collapsed")
         st.markdown('</div>', unsafe_allow_html=True)
         st.session_state.current_page=sel
-        if st.button("전체 초기화"): st.session_state.clear(); st.rerun()
+
+        st.markdown("---")
+        try:
+            st.link_button("🌐 독서감상문 공유", "http://wwww.example.com")
+        except Exception:
+            st.markdown('<a class="linklike-btn" href="http://wwww.example.com" target="_blank">🌐 독서감상문 공유</a>', unsafe_allow_html=True)
+
+        # 이름 변경: 전체 초기화 → 처음으로
+        if st.button("처음으로"): st.session_state.clear(); st.rerun()
+
     pages={
         "책 검색":page_book,
         "단어 알아보기":page_vocab,
@@ -658,7 +698,7 @@ def main():
         "독서 감상문 피드백":page_feedback,
         "포트폴리오/대시보드":page_portfolio_dashboard
     }
-    pages[sel]()
+    pages[st.session_state.current_page]()
 
 if __name__=="__main__":
     main()
