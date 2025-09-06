@@ -297,7 +297,7 @@ def render_reco_table(items:list):
             st.markdown(desc or "(소개 없음)")
             if st.button("✅ 이 책 선택", key=f"reco_pick_{i}"):
                 select_book_and_build(b)
-                st.experimental_rerun()
+                st.rerun()
 
         # row divider
         st.markdown("<div style='height:8px;border-bottom:1px dashed #e5e7eb;'></div>", unsafe_allow_html=True)
@@ -506,7 +506,7 @@ def page_quiz():
             if st.button("🔁 다시 도전하기"):
                 st.session_state.answers={}
                 st.session_state.ans_uid = uid + 1
-                st.experimental_rerun()
+                st.rerun()
 
     if st.button("다음 단계 ▶ 4) 독서 생각 나누기"):
         st.session_state.current_page="독서 토론"; st.rerun()
@@ -767,5 +767,6 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
