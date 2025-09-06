@@ -1,5 +1,5 @@
 # 북클라이밍 - 독서의 정상에 도전하라 – 2025-05-08
-# rev.OCT-08: VOCAB-SEPARATOR + VOCAB-NOTE + RENAME-RESET-BUTTONS
+# rev.OCT-11: MONTHLY-RECS UI (selectbox 3~6) + per-row pick button in table-like layout
 import streamlit as st, requests, re, json, base64, time, mimetypes, uuid, datetime, random, os, io, sqlite3
 import pandas as pd
 from collections import Counter
@@ -184,7 +184,7 @@ def related_words(word:str, level:str)->dict:
     except:
         return {"meaning":"(설명 생성 실패)","synonyms":[],"antonyms":[],"examples":[]}
 
-# ───── 토론 기록 TXT 생성 ─────
+# ───── 토론 TXT 생성 ─────
 def build_debate_txt_bytes(title:str, topic:str, user_side:str, transcript:list, score:dict, feedback_text:str):
     txt="독서토론 기록\n\n"
     txt+=f"[책] {title}\n[주제] {topic}\n[학생 입장] {user_side}\n\n"
@@ -248,7 +248,61 @@ def db_dashboard(year=None, school=None, grade=None, klass=None, number=None):
         data.append({"ts":ts,"year":y,"school":sc,"grade":gr,"klass":kl,"number":no,"page":page,"payload":d,"student_id":sid})
     return pd.DataFrame(data)
 
-# ───── 학생 식별 정보 입력 (사이드바) ─────
+# ───── 추천 도서(3~6학년, 5권) ─────
+def fetch_grade_recs(grade:int):
+    qs = [f"초등 {grade}학년 동화 추천", f"초등 {grade}학년 소설 추천"]
+    seen = set(); out=[]
+    for q in qs:
+        for b in nv_search(q):
+            key = clean_html(b.get("title","")).strip()
+            if key and key not in seen:
+                seen.add(key); out.append(b)
+    return out[:5]
+
+def select_book_and_build(sel):
+    st.session_state.selected_book=sel
+    title=clean_html(sel["title"])
+    base_syn=synopsis(title,sel)
+    st.session_state.synopsis=elem_syn(title,base_syn,st.session_state.level)
+    st.success(f"책 선택 완료! → {title}")
+    if st.session_state.get("student_id"):
+        db_save_event(st.session_state.student_id,"book",{"title": title,"author": clean_html(sel.get("author","")),"level": st.session_state.level})
+
+def render_reco_table(items:list):
+    """표지/제목/내용(+이 책 선택 버튼) 3열로 표처럼 렌더링"""
+    # Header
+    h1,h2,h3 = st.columns([1,2,5])
+    with h1: st.markdown("**표지**")
+    with h2: st.markdown("**책 제목**")
+    with h3: st.markdown("**책 내용**")
+    st.markdown("<div style='height:8px;border-bottom:1px solid #e5e7eb;'></div>", unsafe_allow_html=True)
+
+    for i,b in enumerate(items):
+        img = b.get("image") or ""
+        title = clean_html(b.get("title",""))
+        desc = clean_html(b.get("description","")).strip()
+        if not desc:
+            brief = (crawl_syn(title) or "").strip()
+            desc = brief[:180]
+        if len(desc)>180: desc = desc[:170]+"…"
+
+        c1,c2,c3 = st.columns([1,2,5])
+        with c1:
+            if img: st.image(img, use_container_width=True)
+        with c2:
+            st.markdown(f"**{title}**")
+            author = clean_html(b.get("author",""))
+            if author: st.caption(author)
+        with c3:
+            st.markdown(desc or "(소개 없음)")
+            if st.button("✅ 이 책 선택", key=f"reco_pick_{i}"):
+                select_book_and_build(b)
+                st.experimental_rerun()
+
+        # row divider
+        st.markdown("<div style='height:8px;border-bottom:1px dashed #e5e7eb;'></div>", unsafe_allow_html=True)
+
+# ───── 학생 패널 ─────
 def student_panel():
     if "ui_font_size_choice" not in st.session_state:
         st.session_state["ui_font_size_choice"] = "보통"
@@ -282,14 +336,37 @@ def page_book():
     st.markdown('<span class="badge">난이도(모든 활동 적용)</span>', unsafe_allow_html=True)
     level = st.selectbox("난이도", ["쉬움","기본","심화"], index=["쉬움","기본","심화"].index(st.session_state.get("level","기본")))
     st.session_state.level = level
+
     intro_path=load_intro_path()
     if intro_path:
         l,c,r=st.columns([0.15,0.70,0.15]); 
         with c: render_img_percent(intro_path,0.70)
-    st.header("📘 1) 책검색 및 표지대화")
-    # 이름 변경: 페이지 초기화 → 활동 다시하기
+
+    st.header("📘 1) 책 검색 & 표지 대화")
     if st.sidebar.button("활동 다시하기"): st.session_state.clear(); st.rerun()
 
+    # ── 이달의 추천 도서
+    rec_col, _ = st.columns([1,3])
+    with rec_col:
+        if st.button("🎁 이달의 추천 도서"):
+            st.session_state["show_reco"]= not st.session_state.get("show_reco", False)
+
+    if st.session_state.get("show_reco", False):
+        st.markdown("#### 이달의 추천 도서 (3~6학년 · 동화/소설)")
+        # 요청: 슬라이더 → 드롭다운(selectbox)
+        default_grade = min(max(st.session_state.get("grade",3),3),6)
+        g = st.selectbox("학년 선택", options=[3,4,5,6], index=[3,4,5,6].index(default_grade))
+        c1,c2 = st.columns([1,4])
+        with c1:
+            if st.button("🔎 추천 불러오기"):
+                st.session_state["reco"] = fetch_grade_recs(int(g))
+        items = st.session_state.get("reco", [])
+        if items:
+            render_reco_table(items)  # 표 형태 + 각 행에 [이 책 선택] 버튼
+        else:
+            st.info("추천 결과가 없어요. [🔎 추천 불러오기]를 눌러 주세요.")
+
+    # ── 일반 검색
     q=st.text_input("책 제목·키워드")
     if st.button("🔍 검색") and q.strip():
         result=nv_search(q.strip())
@@ -299,13 +376,7 @@ def page_book():
     if bs:=st.session_state.get("search"):
         _, sel=st.selectbox("책 선택",[(f"{clean_html(b['title'])} | {clean_html(b['author'])}",b) for b in bs],format_func=lambda x:x[0])
         if st.button("✅ 선택"):
-            st.session_state.selected_book=sel
-            title=clean_html(sel["title"])
-            base_syn=synopsis(title,sel)
-            st.session_state.synopsis=elem_syn(title,base_syn,st.session_state.level)
-            st.success("책 선택 완료!")
-            if st.session_state.get("student_id"):
-                db_save_event(st.session_state.student_id,"book",{"title": title,"author": clean_html(sel.get("author","")),"level": st.session_state.level})
+            select_book_and_build(sel)
 
     if bk:=st.session_state.get("selected_book"):
         title=clean_html(bk["title"]); cover=bk["image"]; syn=st.session_state.synopsis
@@ -358,20 +429,15 @@ def page_vocab():
     if st.session_state.get("vocab_meaning"):
         st.markdown("#### 뜻과 예시")
         st.write(st.session_state.vocab_meaning)
-
-        # ★ 구분선 추가
         st.divider()
 
     if st.session_state.get("rel_out"):
         rel=st.session_state.rel_out
-
-        # ★ 제목 옆 유의사항 표시(옅은 회색 작은 글씨)
         st.markdown(
             "#### 관련있는 낱말 "
             "<span style='font-size:0.9rem;color:#4b5563;'>"
             "유의사항: 학생이 검색한 단어중 최대한 유사한 단어 및 반대되는 단어를 보여줍니다."
-            "</span>",
-            unsafe_allow_html=True
+            "</span>", unsafe_allow_html=True
         )
         cL, cR = st.columns(2)
         with cL:
@@ -386,12 +452,12 @@ def page_vocab():
             st.markdown("**예문**")
             for ex in rel["examples"]: st.write("- " + ex)
 
-    if st.button("다음 단계 ▶ 3) 독서 퀴즈"):
+    if st.button("다음 단계 ▶ 3) 이야기 퀴즈"):
         st.session_state.current_page="독서 퀴즈"; st.rerun()
 
 # ───── PAGE 3 : 퀴즈 ─────
 def page_quiz():
-    st.header("📝 3) 독서 퀴즈")
+    st.header("📝 3) 이야기 퀴즈")
     if "selected_book" not in st.session_state:
         st.info("책을 먼저 선택해주세요.");
         if st.button("◀ 이전 (1)"): st.session_state.current_page="책 검색"; st.rerun()
@@ -442,12 +508,12 @@ def page_quiz():
                 st.session_state.ans_uid = uid + 1
                 st.experimental_rerun()
 
-    if st.button("다음 단계 ▶ 4) 독서 토론"):
+    if st.button("다음 단계 ▶ 4) 독서 생각 나누기"):
         st.session_state.current_page="독서 토론"; st.rerun()
 
 # ───── PAGE 4 : 독서 토론 (텍스트 전용) ─────
 def page_discussion():
-    st.header("⚖️ 4) 독서 토론")
+    st.header("🗣️ 4) 독서 생각 나누기")
     if "selected_book" not in st.session_state:
         st.info("책을 먼저 선택해주세요.");
         if st.button("◀ 이전 (1)"): st.session_state.current_page="책 검색"; st.rerun()
@@ -477,7 +543,7 @@ def page_discussion():
     b1,b2=st.columns([1,1])
     with b1: start_clicked=st.button("🚀 토론 시작")
     with b2:
-        if st.button("다음 단계 ▶ 5) 독서감상문 피드백"): st.session_state.current_page="독서 감상문 피드백"; st.rerun()
+        if st.button("다음 단계 ▶ 5) 독서감상문 고치기"): st.session_state.current_page="독서 감상문 피드백"; st.rerun()
 
     if start_clicked:
         if not topic or not topic.strip(): st.warning("토론 주제를 입력하거나 선택해주세요.")
@@ -522,7 +588,7 @@ def page_discussion():
                 score_prompt=("아래는 초등학생과 챗봇의 찬반 토론 대화입니다.\n각 측에 대해 5가지 기준을 0~20점으로 채점, 총점 100점.\n"
                               "기준: 1줄거리 이해 2생각을 분명히 말함(책과 연결) 3근거 제시 4질문에 답하고 잇기 5새로운 질문/깊이.\n"
                               f"학생(STUDENT)은 '{st.session_state.user_side}', BOT은 '{st.session_state.bot_side}'. JSON만:\n"
-                              "{\"pro\":{\"criteria_scores\":[..5..],\"total\":정수},\"con\":{\"criteria_scores\":[..5..],\"total\":정수},\"winner\":\"찬성|반대\"}")
+                              "{{\"pro\":{{\"criteria_scores\":[..5..],\"total\":정수}},\"con\":{{\"criteria_scores\":[..5..],\"total\":정수}},\"winner\":\"찬성|반대\"}}")
                 res_score=gpt([{"role":"user","content":"\n".join(transcript)+"\n\n"+score_prompt}],0.2,800)
                 try: st.session_state.score_json=json.loads(strip_fence(res_score))
                 except: st.session_state.score_json={"pro":{"total":0},"con":{"total":0},"winner":"-"}
@@ -560,9 +626,9 @@ def page_discussion():
                 data, mime, fname = build_debate_txt_bytes(title, st.session_state.debate_topic, st.session_state.user_side, transcript, score, st.session_state.get("user_feedback_text",""))
                 st.download_button("🧾 토론 기록 TXT 저장", data=data, file_name=fname, mime=mime, key="debate_txt_dl")
 
-# ───── PAGE 5 : 감상문 피드백 (STT 없음) ─────
+# ───── PAGE 5 : 감상문 피드백 ─────
 def page_feedback():
-    st.header("🎤 5) 독서감상문 피드백")
+    st.header("✍️ 5) 독서감상문 고치기")
     if st.sidebar.button("피드백 초기화"): st.session_state.pop("essay",""); st.session_state.pop("ocr_file",""); st.rerun()
     if st.session_state.get("selected_book"):
         title=clean_html(st.session_state.selected_book["title"]); syn=st.session_state.synopsis
@@ -589,7 +655,7 @@ def page_feedback():
 
 # ───── PAGE 6 : 포트폴리오 & 대시보드 ─────
 def page_portfolio_dashboard():
-    st.header("📚 포트폴리오 & 📊 대시보드")
+    st.header("🎒 6) 나의 독서 앨범")
     st.caption("먼저 학년도/학교/학년/반/번호를 고르면, 그 아래에 기록을 정리해 보여줍니다. 번호가 0이면 학급 전체 집계입니다.")
     col1,col2,col3,col4,col5 = st.columns(5)
     year  = col1.number_input("학년도", min_value=2020, max_value=2100, value=st.session_state.get("year", datetime.datetime.now().year), step=1)
@@ -666,12 +732,12 @@ def main():
         student_panel()
         st.markdown("### 메뉴")
         menu_labels={
-            "책 검색":"📘 1) 책검색 및 표지대화",
-            "단어 알아보기":"🧩 2) 단어 알아보기",
-            "독서 퀴즈":"📝 3) 독서 퀴즈",
-            "독서 토론":"⚖️ 4) 독서 토론",
-            "독서 감상문 피드백":"🎤 5) 독서감상문 피드백",
-            "포트폴리오/대시보드":"📓 포트폴리오/대시보드"
+            "책 검색":"📘 책 찾기 & 표지 이야기",
+            "단어 알아보기":"🧩 낱말 탐정",
+            "독서 퀴즈":"📝 이야기 퀴즈",
+            "독서 토론":"🗣️ 독서 생각 나누기",
+            "독서 감상문 피드백":"✍️ 독서감상문 고치기",
+            "포트폴리오/대시보드":"🎒 나의 독서 앨범"
         }
         st.markdown('<div class="sidebar-radio">', unsafe_allow_html=True)
         sel=st.radio("", list(menu_labels.keys()),
@@ -687,7 +753,6 @@ def main():
         except Exception:
             st.markdown('<a class="linklike-btn" href="http://wwww.example.com" target="_blank">🌐 독서감상문 공유</a>', unsafe_allow_html=True)
 
-        # 이름 변경: 전체 초기화 → 처음으로
         if st.button("처음으로"): st.session_state.clear(); st.rerun()
 
     pages={
