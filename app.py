@@ -401,7 +401,7 @@ def page_book():
                     rsp=gpt(st.session_state.chat,level_params(st.session_state.level)['temp'],400)
                     st.session_state.chat.append({"role":"assistant","content":rsp}); st.rerun()
 
-        if st.button("다음 단계 ▶ 2) 단어 알아보기"):
+        if st.button("다음 단계 ▶ 2) 낱말 탐정"):
             st.session_state.current_page="단어 알아보기"; st.rerun()
 
 # ───── PAGE 2 : 단어 알아보기 ─────
@@ -767,4 +767,5 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
