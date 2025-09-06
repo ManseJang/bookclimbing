@@ -342,7 +342,7 @@ def page_book():
         l,c,r=st.columns([0.15,0.70,0.15]); 
         with c: render_img_percent(intro_path,0.70)
 
-    st.header("📘 1) 책 검색 & 표지 대화")
+    st.header("📘 1) 책 찾기 & 표지 이야기")
     if st.sidebar.button("활동 다시하기"): st.session_state.clear(); st.rerun()
 
     # ── 이달의 추천 도서
@@ -406,7 +406,7 @@ def page_book():
 
 # ───── PAGE 2 : 단어 알아보기 ─────
 def page_vocab():
-    st.header("🧩 2) 단어 알아보기")
+    st.header("🧩 2) 낱말 탐정")
     if "selected_book" not in st.session_state:
         st.info("책을 먼저 선택해주세요."); 
         if st.button("◀ 이전 (1)"): st.session_state.current_page="책 검색"; st.rerun()
@@ -767,3 +767,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
