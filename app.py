@@ -671,7 +671,7 @@ def page_portfolio_dashboard():
     con_tot=[d.get("con_total") for d in df[df["page"]=="debate"]["payload"].tolist() if "con_total" in d]
     books=[d.get("title") for d in df[df["page"]=="book"]["payload"].tolist() if "title" in d]
     colm = st.columns(5)
-    colm[0].metric("총 이벤트 수", len(df))
+    colm[0].metric("총 읽은 권수", len(df))
     colm[1].metric("평균 퀴즈 점수", round(sum(quiz_scores)/len(quiz_scores),1) if quiz_scores else 0.0)
     colm[2].metric("평균(찬성) 토론점수", round(sum(pro_tot)/len(pro_tot),1) if pro_tot else 0.0)
     colm[3].metric("평균(반대) 토론점수", round(sum(con_tot)/len(con_tot),1) if con_tot else 0.0)
@@ -767,6 +767,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
