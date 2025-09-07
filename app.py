@@ -716,6 +716,57 @@ def page_portfolio_dashboard():
         st.markdown("**최근 토론 주제**: " + str(last.get("topic","-")))
         st.markdown("**토론 로그**"); st.text("\n".join(last.get("transcript",[])))
         st.markdown("**토론 피드백**"); st.write(last.get("feedback",""))
+    # --- (NEW) 독서감상문 피드백 패널 ---------------------------------------
+    erows = sdf[sdf["page"] == "essay"].copy()
+    if not erows.empty:
+        # 시간 기준 정렬(최신 순)
+        erows["ts_dt"] = pd.to_datetime(erows["ts"], errors="coerce")
+        erows = erows.sort_values("ts_dt")
+
+        st.subheader("✍️ 독서감상문 피드백")
+        # 여러 편이 있을 수 있으니 선택해서 볼 수 있게 구성
+        opts = []
+        idxs = []
+        for i, row in erows.iterrows():
+            payload = row["payload"] if isinstance(row["payload"], dict) else {}
+            title = payload.get("title", "-")
+            when = row.get("ts_dt")
+            label = f'{when.strftime("%Y-%m-%d %H:%M") if pd.notna(when) else row["ts"]} · {title}'
+            opts.append(label)
+            idxs.append(i)
+
+        pick = st.selectbox("감상문 선택", options=range(len(opts)), format_func=lambda k: opts[k], index=len(opts)-1)
+        chosen = erows.loc[idxs[pick], "payload"]
+        if not isinstance(chosen, dict):
+            # 혹시 예전 데이터가 문자열 그대로라면 안전 처리
+            try:
+                chosen = json.loads(chosen)
+            except Exception:
+                chosen = {}
+
+        e_title = chosen.get("title", "-")
+        e_text  = chosen.get("essay", "").strip()
+        e_fb    = chosen.get("feedback", "").strip()
+
+        st.markdown(f"**책 제목:** {e_title}")
+        with st.expander("📝 학생 감상문(원문) 보기", expanded=False):
+            st.text(e_text or "(입력된 감상문이 없습니다.)")
+
+        st.markdown("**피드백**")
+        st.write(e_fb or "(피드백 내용이 없습니다.)")
+
+        # TXT로 내려받기(원문 + 피드백)
+        if e_text or e_fb:
+            txt = f"독서감상문 기록\n\n[책] {e_title}\n\n[학생 감상문]\n{e_text}\n\n[피드백]\n{e_fb}\n"
+            st.download_button(
+                "📥 감상문+피드백 TXT 저장",
+                data=txt.encode("utf-8"),
+                file_name="essay_feedback.txt",
+                mime="text/plain",
+                key="essay_txt_dl"
+            )
+
+
 
 # ───── MAIN ─────
 def main():
@@ -767,6 +818,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
