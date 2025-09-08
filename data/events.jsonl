@@ -14,3 +14,4 @@
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:49:45.889897", "page": "page_enter", "payload": {"page": "책 검색"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:49:46.677316", "page": "page_enter", "payload": {"page": "단어 알아보기"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:49:48.462739", "page": "page_enter", "payload": {"page": "단어 알아보기"}}
+{"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:49:51.571772", "page": "page_enter", "payload": {"page": "단어 알아보기"}}
