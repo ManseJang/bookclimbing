@@ -5,3 +5,4 @@
 {"type": "event", "student_id": "2025-한국초-3-1-1", "ts": "2025-09-08T14:48:40.516578", "page": "page_enter", "payload": {"page": "책 검색"}}
 {"type": "event", "student_id": "2025-한국초-3-1-1", "ts": "2025-09-08T14:48:51.300806", "page": "page_enter", "payload": {"page": "책 검색"}}
 {"type": "event", "student_id": "2025-한국초-4-1-1", "ts": "2025-09-08T14:48:53.266165", "page": "page_enter", "payload": {"page": "책 검색"}}
+{"type": "event", "student_id": "2025-한국초-4-1-1", "ts": "2025-09-08T14:49:06.826125", "page": "page_enter", "payload": {"page": "책 검색"}}
