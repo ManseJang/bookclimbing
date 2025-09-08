@@ -1,5 +1,5 @@
 # 북클라이밍 - 독서의 정상에 도전하라 – 2025-05-08
-# rev.OCT-11: MONTHLY-RECS UI (selectbox 3~6) + per-row pick button in table-like layout
+# rev.OCT-11+DBSYNC: Reliable DB save + optional GitHub JSONL sync
 import streamlit as st, requests, re, json, base64, time, mimetypes, uuid, datetime, random, os, io, sqlite3
 import pandas as pd
 from collections import Counter
@@ -12,6 +12,78 @@ NAVER_CLIENT_ID      = st.secrets["NAVER_CLIENT_ID"]
 NAVER_CLIENT_SECRET  = st.secrets["NAVER_CLIENT_SECRET"]
 NAVER_OCR_SECRET     = st.secrets.get("NAVER_OCR_SECRET","")
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ───── GitHub 설정(선택) ─────
+# st.secrets 에서 우선 읽고, 없으면 하드코딩 기본값(질문에 준 값) 사용
+GITHUB_TOKEN     = st.secrets.get("GITHUB_TOKEN",        "ghp_")
+GH_REPO          = st.secrets.get("GH_REPO",             "ManseJang/bookclimbing")
+GH_BRANCH        = st.secrets.get("GH_BRANCH",           "main")
+GH_EVENTS_PATH   = st.secrets.get("GH_EVENTS_PATH",      "data/events.jsonl")
+GH_STUDENTS_PATH = st.secrets.get("GH_STUDENTS_PATH",    "data/students.jsonl")
+
+def _gh_enabled() -> bool:
+    return bool(GITHUB_TOKEN and GITHUB_TOKEN != "ghp_" and GH_REPO and GH_BRANCH)
+
+def _gh_headers():
+    return {"Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"}
+
+def _gh_contents_api(path:str)->str:
+    owner_repo = GH_REPO
+    return f"https://api.github.com/repos/{owner_repo}/contents/{path}"
+
+def gh_get_file_sha(path:str):
+    try:
+        r = requests.get(_gh_contents_api(path), headers=_gh_headers(),
+                         params={"ref": GH_BRANCH}, timeout=10)
+        if r.status_code == 200:
+            return r.json().get("sha")
+        return None
+    except Exception:
+        return None
+
+def gh_append_jsonl(path:str, record:dict):
+    """GitHub repo의 JSONL 파일에 한 줄 append (없으면 새로 생성)"""
+    if not _gh_enabled():
+        return False, "GitHub sync disabled"
+
+    # 1) 기존 파일 읽기(있으면 다운로드 → base64 decode)
+    sha = gh_get_file_sha(path)
+    if sha:
+        get_res = requests.get(_gh_contents_api(path), headers=_gh_headers(),
+                               params={"ref": GH_BRANCH}, timeout=15)
+        if get_res.status_code != 200:
+            return False, f"GET failed: {get_res.status_code}"
+        content_b64 = get_res.json().get("content","")
+        try:
+            raw_bytes = base64.b64decode(content_b64)
+            txt = raw_bytes.decode("utf-8", errors="ignore")
+        except Exception:
+            txt = ""
+        new_txt = (txt.rstrip("\n") + "\n" if txt else "") + json.dumps(record, ensure_ascii=False)
+        b64 = base64.b64encode(new_txt.encode("utf-8")).decode()
+        put_payload = {
+            "message": f"Append JSONL: {os.path.basename(path)}",
+            "content": b64,
+            "branch": GH_BRANCH,
+            "sha": sha
+        }
+    else:
+        # 2) 새 파일 생성
+        new_txt = json.dumps(record, ensure_ascii=False) + "\n"
+        b64 = base64.b64encode(new_txt.encode("utf-8")).decode()
+        put_payload = {
+            "message": f"Create JSONL: {os.path.basename(path)}",
+            "content": b64,
+            "branch": GH_BRANCH
+        }
+
+    put_res = requests.put(_gh_contents_api(path), headers=_gh_headers(), json=put_payload, timeout=20)
+    if put_res.status_code in (200,201):
+        return True, "ok"
+    else:
+        return False, f"PUT failed: {put_res.status_code} {put_res.text[:200]}"
 
 # ───── 유틸 ─────
 def clean_html(t): return re.sub(r"<.*?>","",t or "")
@@ -193,34 +265,49 @@ def build_debate_txt_bytes(title:str, topic:str, user_side:str, transcript:list,
     txt+="[총평]\n"+(feedback_text or "")+"\n\n[토론 로그]\n"+"\n".join(transcript)
     return txt.encode("utf-8"), "text/plain", "debate_record.txt"
 
-# ───── 데이터 (SQLite) ─────
+# ───── 데이터 (SQLite + GitHub JSONL 동기화) ─────
 DB_PATH = "classdb.db"
+
 def _sqlite_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.execute("""CREATE TABLE IF NOT EXISTS students(
         student_id TEXT PRIMARY KEY,
         year INT, school TEXT, grade INT, klass INT, number INT,
-        created_at TEXT
+        created_at TEXT, name TEXT
     );""")
     conn.execute("""CREATE TABLE IF NOT EXISTS events(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id TEXT, ts TEXT, page TEXT, payload TEXT
     );""")
     conn.commit()
+    # migration: name 컬럼 없으면 추가
     cols = [r[1] for r in conn.execute("PRAGMA table_info('students')").fetchall()]
     if "name" not in cols:
         try: conn.execute("ALTER TABLE students ADD COLUMN name TEXT;"); conn.commit()
         except: pass
     return conn
+
+def _ensure_student_row(student_id:str, year:int, school:str, grade:int, klass:int, number:int, name:str):
+    conn = _sqlite_conn()
+    cur = conn.execute("SELECT 1 FROM students WHERE student_id=?", (student_id,))
+    exists = cur.fetchone() is not None
+    if not exists:
+        conn.execute("""INSERT OR IGNORE INTO students(student_id, year, school, grade, klass, number, name, created_at)
+                        VALUES (?,?,?,?,?,?,?,?)""",
+                     (student_id, year, school, grade, klass, number, name, datetime.datetime.now().isoformat()))
+        conn.commit()
+    conn.close()
+
 def db_insert_student(student_id, year, school, grade, klass, number, name):
     try:
         conn = _sqlite_conn()
-        conn.execute("""INSERT OR IGNORE INTO students(student_id, year, school, grade, klass, number, name, created_at)
+        conn.execute("""INSERT OR REPLACE INTO students(student_id, year, school, grade, klass, number, name, created_at)
                         VALUES (?,?,?,?,?,?,?,?)""",
                      (student_id, year, school, grade, klass, number, name, datetime.datetime.now().isoformat()))
         conn.commit(); conn.close()
     except Exception as e:
         st.warning(f"학생 저장 오류: {e}")
+
 def db_save_event(student_id, page, payload_dict):
     try:
         conn = _sqlite_conn()
@@ -229,6 +316,7 @@ def db_save_event(student_id, page, payload_dict):
         conn.commit(); conn.close()
     except Exception as e:
         st.warning(f"기록 저장 오류: {e}")
+
 def db_dashboard(year=None, school=None, grade=None, klass=None, number=None):
     conn = _sqlite_conn()
     q = """SELECT s.year, s.school, s.grade, s.klass, s.number, e.page, e.payload, e.ts, s.student_id
@@ -244,9 +332,60 @@ def db_dashboard(year=None, school=None, grade=None, klass=None, number=None):
     conn.close()
     data=[]
     for y,sc,gr,kl,no,page,payload,ts,sid in rows:
-        d=json.loads(payload)
+        try:
+            d=json.loads(payload)
+        except Exception:
+            d={"_raw":payload}
         data.append({"ts":ts,"year":y,"school":sc,"grade":gr,"klass":kl,"number":no,"page":page,"payload":d,"student_id":sid})
     return pd.DataFrame(data)
+
+# ───── (NEW) 저장 래퍼: DB + (옵션)GitHub JSONL ─────
+def save_student(year:int, school:str, grade:int, klass:int, number:int, name:str):
+    student_id = f"{year}-{school}-{grade}-{klass}-{number}"
+    db_insert_student(student_id, year, school, grade, klass, number, name)
+    st.session_state.student_id = student_id
+    st.toast(f"학생 저장 완료: {student_id}" + (f" ({name})" if name else ""), icon="✅")
+
+    # GitHub JSONL 백업(선택)
+    if _gh_enabled():
+        rec = {
+            "ts": datetime.datetime.now().isoformat(),
+            "student_id": student_id,
+            "year": year, "school": school, "grade": grade, "klass": klass, "number": number,
+            "name": name or ""
+        }
+        ok, msg = gh_append_jsonl(GH_STUDENTS_PATH, rec)
+        st.session_state["_gh_students_status"] = "synced" if ok else ("error: " + str(msg))
+
+def save_event(page:str, payload:dict):
+    """현재 세션의 student_id로 이벤트 저장. student가 없으면 안전 생성."""
+    sid = st.session_state.get("student_id")
+    year  = st.session_state.get("year", datetime.datetime.now().year)
+    school= st.session_state.get("school","")
+    grade = st.session_state.get("grade", 0)
+    klass = st.session_state.get("klass", 0)
+    number= st.session_state.get("number", 0)
+    name  = st.session_state.get("name","")
+
+    if not sid:
+        sid = f"{year}-{school}-{grade}-{klass}-{number}"
+        st.session_state.student_id = sid
+
+    # 학생 존재 보장 후 이벤트 저장
+    _ensure_student_row(sid, year, school, grade, klass, number, name)
+    db_save_event(sid, page, payload)
+    st.toast(f"기록 저장: {page}", icon="💾")
+
+    # GitHub JSONL 백업(선택)
+    if _gh_enabled():
+        rec = {
+            "ts": datetime.datetime.now().isoformat(),
+            "student_id": sid,
+            "page": page,
+            "payload": payload
+        }
+        ok, msg = gh_append_jsonl(GH_EVENTS_PATH, rec)
+        st.session_state["_gh_events_status"] = "synced" if ok else ("error: " + str(msg))
 
 # ───── 추천 도서(3~6학년, 5권) ─────
 def fetch_grade_recs(grade:int):
@@ -265,8 +404,11 @@ def select_book_and_build(sel):
     base_syn=synopsis(title,sel)
     st.session_state.synopsis=elem_syn(title,base_syn,st.session_state.level)
     st.success(f"책 선택 완료! → {title}")
-    if st.session_state.get("student_id"):
-        db_save_event(st.session_state.student_id,"book",{"title": title,"author": clean_html(sel.get("author","")),"level": st.session_state.level})
+    save_event("book",{
+        "title": title,
+        "author": clean_html(sel.get("author","")),
+        "level": st.session_state.level
+    })
 
 def render_reco_table(items:list):
     """표지/제목/내용(+이 책 선택 버튼) 3열로 표처럼 렌더링"""
@@ -325,11 +467,17 @@ def student_panel():
             name  = st.text_input("이름(선택)", value=st.session_state.get("name",""))
         submitted = st.form_submit_button("학생 사용/저장")
         if submitted:
+            # 세션업데이트 + 저장 래퍼 이용
             st.session_state.update(dict(year=year, school=school, grade=grade, klass=klass, number=number, name=name))
-            student_id = f"{year}-{school}-{grade}-{klass}-{number}"
-            st.session_state.student_id = student_id
-            db_insert_student(student_id, year, school, grade, klass, number, name)
-            st.success(f"현재 학생: {student_id}" + (f" ({name})" if name else ""))
+            save_student(year, school, grade, klass, number, name)
+
+    # GitHub 동기화 상태 뱃지(선택)
+    if _gh_enabled():
+        status_s = st.session_state.get("_gh_students_status","")
+        status_e = st.session_state.get("_gh_events_status","")
+        if status_s or status_e:
+            color = "#16a34a" if ("synced" in (status_s+status_e)) and "error" not in (status_s+status_e) else "#ef4444"
+            st.markdown(f"<span class='badge' style='background:#eefbf1;color:{color};'>GitHub 동기화: {status_s or '-'} / {status_e or '-'}</span>", unsafe_allow_html=True)
 
 # ───── PAGE 1 : 책검색 & 표지대화 ─────
 def page_book():
@@ -353,7 +501,6 @@ def page_book():
 
     if st.session_state.get("show_reco", False):
         st.markdown("#### 이달의 추천 도서 (3~6학년 · 동화/소설)")
-        # 요청: 슬라이더 → 드롭다운(selectbox)
         default_grade = min(max(st.session_state.get("grade",3),3),6)
         g = st.selectbox("학년 선택", options=[3,4,5,6], index=[3,4,5,6].index(default_grade))
         c1,c2 = st.columns([1,4])
@@ -498,10 +645,8 @@ def page_quiz():
                 guide="아주 쉽게" if lv=="쉬움" else ("근거 인용과 함께" if lv=="심화" else "핵심 이유 중심")
                 explain=gpt([{"role":"user","content":"다음 JSON으로 각 문항 해설과 총평을 한국어로 작성. 난이도:"+lv+" "+guide+".\n"+json.dumps({"quiz":q,"student_answers":st.session_state.answers},ensure_ascii=False)}],lvp['temp'],lvp['explain_len'])
                 st.write(explain)
-                if st.session_state.get("student_id"):
-                    db_save_event(st.session_state.student_id,"quiz",{
-                        "title": title, "score": score, "correct": correct, "level": st.session_state.level
-                    })
+                # (NEW) 저장 래퍼
+                save_event("quiz", {"title": title, "score": score, "correct": correct, "level": st.session_state.level})
         with c2:
             if st.button("🔁 다시 도전하기"):
                 st.session_state.answers={}
@@ -601,16 +746,16 @@ def page_discussion():
                            "\n\n토론의 근거가 된 줄거리:\n" + st.session_state.synopsis[:1200])
                 st.session_state.user_feedback_text=gpt([{"role":"user","content":fb_prompt}],0.3,1200)
 
-                if st.session_state.get("student_id"):
-                    sc=st.session_state.score_json
-                    db_save_event(st.session_state.student_id,"debate",{
-                        "title": title, "topic": st.session_state.debate_topic,
-                        "pro_total": sc.get("pro",{}).get("total",0),
-                        "con_total": sc.get("con",{}).get("total",0),
-                        "winner": sc.get("winner","-"),
-                        "transcript": transcript,
-                        "feedback": st.session_state.user_feedback_text
-                    })
+                # (NEW) 저장 래퍼
+                sc=st.session_state.score_json
+                save_event("debate",{
+                    "title": title, "topic": st.session_state.debate_topic,
+                    "pro_total": sc.get("pro",{}).get("total",0),
+                    "con_total": sc.get("con",{}).get("total",0),
+                    "winner": sc.get("winner","-"),
+                    "transcript": transcript,
+                    "feedback": st.session_state.user_feedback_text
+                })
                 st.session_state.debate_eval=True; st.rerun()
             else:
                 st.subheader("토론 평가")
@@ -648,10 +793,8 @@ def page_feedback():
                    f"선택 책: {title}\n줄거리:\n{syn}\n\n학생 감상문:\n{essay}")
         fb=gpt([{"role":"user","content":fb_prompt}],level_params(st.session_state.level)['temp'],2300)
         st.subheader("피드백 결과"); st.write(fb)
-        if st.session_state.get("student_id"):
-            db_save_event(st.session_state.student_id,"essay",{
-                "title": title, "essay": essay, "feedback": fb, "level": st.session_state.level
-            })
+        # (NEW) 저장 래퍼
+        save_event("essay", {"title": title, "essay": essay, "feedback": fb, "level": st.session_state.level})
 
 # ───── PAGE 6 : 포트폴리오 & 대시보드 ─────
 def page_portfolio_dashboard():
@@ -766,8 +909,6 @@ def page_portfolio_dashboard():
                 key="essay_txt_dl"
             )
 
-
-
 # ───── MAIN ─────
 def main():
     st.set_page_config("북클라이밍","📚",layout="wide")
@@ -818,8 +959,3 @@ def main():
 
 if __name__=="__main__":
     main()
-
-
-
-
-
