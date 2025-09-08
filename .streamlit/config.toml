@@ -1,0 +1,23 @@
+# Streamlit 기본 설정
+[server]
+# 앱을 wide 모드로 기본 실행
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[theme]
+# 기본 테마 라이트 모드
+base = "light"
+
+# 색상 커스터마이즈 (원하는 값으로 변경 가능)
+primaryColor = "#0b1220"           # 버튼, 하이라이트 포인트 색
+backgroundColor = "#ffffff"        # 메인 배경
+secondaryBackgroundColor = "#f6f7fb"  # 사이드바 배경
+textColor = "#0b1220"              # 기본 텍스트 색
+
+# 기본 폰트 (serif / sans serif / monospace)
+font = "sans serif"
+
+[client]
+# wide 모드 기본 적용
+toolbarMode = "minimal"  # (auto, minimal, viewer 옵션)
