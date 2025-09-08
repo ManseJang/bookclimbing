@@ -34,3 +34,4 @@
 {"type": "event", "student_id": "2025-한국초-3-1-1", "ts": "2025-09-08T14:52:40.166584", "page": "page_enter", "payload": {"page": "책 검색"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:52:45.944510", "page": "page_enter", "payload": {"page": "책 검색"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:52:48.964903", "page": "page_enter", "payload": {"page": "포트폴리오/대시보드"}}
+{"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:52:55.376032", "page": "page_enter", "payload": {"page": "포트폴리오/대시보드"}}
