@@ -24,3 +24,4 @@
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:50:18.138873", "page": "page_enter", "payload": {"page": "독서 퀴즈"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:50:30.159788", "page": "quiz", "payload": {"title": "홍길동전", "score": 0, "correct": [false, false, false, false, false], "level": "기본"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:50:33.946001", "page": "page_enter", "payload": {"page": "독서 퀴즈"}}
+{"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:50:34.828773", "page": "page_enter", "payload": {"page": "독서 토론"}}
