@@ -19,3 +19,4 @@
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:49:55.852143", "page": "page_enter", "payload": {"page": "독서 퀴즈"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:50:05.154715", "page": "quiz_gen", "payload": {"title": "홍길동전"}}
 {"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:50:11.303172", "page": "page_enter", "payload": {"page": "독서 퀴즈"}}
+{"type": "event", "student_id": "2025-한국초-6-1-1", "ts": "2025-09-08T14:50:14.077863", "page": "page_enter", "payload": {"page": "독서 퀴즈"}}
