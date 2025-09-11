@@ -724,6 +724,7 @@ def page_feedback():
         depth="간단히" if st.session_state.level=="쉬움" else ("충분히 자세히" if st.session_state.level=="기본" else "구체적 근거와 함께")
         fb_prompt=("너는 초등 글쓰기 코치야. 학생 감상문을 **선택한 책의 줄거리**와 비교하여 칭찬과 수정 제안을 해줘. 점수/일치도 말하지 마.\n"
                    "출력: 1) 내용 피드백 2) 표현·구성 피드백 3) 수정 예시("+depth+")\n\n"
+                   "다음 항목을 고려해줘 1) 인상 깊은 부분이 잘나타났는가 2) 자신의 생각이나 느낌이 잘드러났는가 3) 줄거리가 잘 드러났는가 4) 맞춤법과 문법이 정확한가\n"
                    f"선택 책: {title}\n줄거리:\n{syn}\n\n학생 감상문:\n{essay}")
         fb=gpt([{"role":"user","content":fb_prompt}],level_params(st.session_state.level)['temp'],2300)
         st.subheader("피드백 결과"); st.write(fb)
@@ -876,4 +877,5 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
