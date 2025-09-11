@@ -626,7 +626,7 @@ def page_discussion():
     b1,b2=st.columns([1,1])
     with b1: start_clicked=st.button("🚀 토론 시작")
     with b2:
-        if st.button("다음 단계 ▶ 5) 독서감상문 고치기"): st.session_state.current_page="독서 감상문 피드백"; st.rerun()
+        if st.button("다음 단계 ▶ 5) 독서 생각 성찰하기"): st.session_state.current_page="독서 감상문 피드백"; st.rerun()
 
     if start_clicked:
         if not topic or not topic.strip(): st.warning("토론 주제를 입력하거나 선택해주세요.")
@@ -707,7 +707,7 @@ def page_discussion():
 
 # ───── PAGE 5 : 감상문 피드백 ─────
 def page_feedback():
-    st.header("✍️ 5) 독서감상문 고치기")
+    st.header("✍️ 5) 독서 생각 성찰하기")
     if st.sidebar.button("피드백 초기화"): st.session_state.pop("essay",""); st.session_state.pop("ocr_file",""); st.rerun()
     if st.session_state.get("selected_book"):
         title=clean_html(st.session_state.selected_book["title"]); syn=st.session_state.synopsis
@@ -845,7 +845,7 @@ def main():
             "단어 알아보기":"🧩 낱말 탐정",
             "독서 퀴즈":"📝 이야기 퀴즈",
             "독서 토론":"🗣️ 독서 생각 나누기",
-            "독서 감상문 피드백":"✍️ 독서감상문 고치기",
+            "독서 감상문 피드백":"✍️ 독서 생각 성찰하기",
             "포트폴리오/대시보드":"🎒 나의 독서 앨범"
         }
         st.markdown('<div class="sidebar-radio">', unsafe_allow_html=True)
@@ -876,3 +876,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
