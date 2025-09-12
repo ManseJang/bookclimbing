@@ -183,7 +183,7 @@ def synopsis(title,b):
     d=clean_html(b.get("description","")); c=crawl_syn(title); return (d+"\n\n"+c).strip() if (d or c) else ""
 def elem_syn(title,s,level):
     detail={"쉬움":"초등 저학년, 12~16문장","기본":"초등 중학년, 16~20문장","심화":"초등 고학년, 18~22문장(배경·인물 감정·주제 의식 포함)"}[level]
-    return gpt([{"role":"user","content":f"아래 원문만 근거로 책 '{title}'의 줄거리를 {detail}로 **3단락** 자세히 써줘. (배경/인물/갈등/결말·주제 포함)\n\n원문:\n{s}"}],0.32,3200)
+    return gpt([{"role":"user","content":f"아래 원문만 근거로 책 '{title}'의 줄거리를 {detail}로 자세히 써줘. (배경/인물/갈등/결말·주제 포함)\n\n원문:\n{s}"}],0.32,3200)
 def nv_ocr(img):
     url=st.secrets.get("NAVER_CLOVA_OCR_URL")
     if not url or not NAVER_OCR_SECRET: return "(OCR 설정 필요)"
@@ -924,6 +924,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
