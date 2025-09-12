@@ -523,7 +523,7 @@ def page_book():
         lc,rc=st.columns([1,1])
         with lc: st.image(cover,caption=title,use_container_width=True)
         with rc:
-            st.markdown("### 🖼️ 표지 챗봇 (독서 전 활동)")
+            st.markdown("### 🖼️ 표지를 보며 내용 예측하기 (읽기 전 활동)")
             if "chat" not in st.session_state:
                 st.session_state.chat=[
                     {"role":"system","content":f"초등 대상 표지 대화 챗봇. 난이도:{st.session_state.level}. {level_params(st.session_state.level)['language']}로 질문해요."},
@@ -924,6 +924,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
