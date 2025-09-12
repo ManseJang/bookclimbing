@@ -141,7 +141,7 @@ div[data-testid="stSidebar"]{{
 /* 입력창 테두리 강조 (보라색 효과 제거) */
 .stTextInput>div>div>input,
 .stTextArea textarea {{
-  border: 2px solid var(--ring) !important;
+  border: 4px solid var(--ring) !important;
   border-radius: 8px !important;
   padding: 8px 10px !important;
 }}
@@ -924,6 +924,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
