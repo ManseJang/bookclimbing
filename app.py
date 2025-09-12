@@ -84,20 +84,178 @@ def to_data_url(url):
 
 # ───── 테마 ─────
 FONT_SIZES = {"작게":"14px","보통":"16px","크게":"18px"}
+
 def theme_css(font_px="16px"):
     return f"""
 <style>
+/* 시스템 테마 고정 */
 html {{ color-scheme: light !important; }}
-:root{{ --bg:#f5f7fb; --sidebar-bg:#eef2f7; --card:#ffffff; --text:#0b1220; --ring:#e5e7eb;
---btn-bg:#fef08a; --btn-text:#0b1220; --btn-bg-hover:#fde047; --chip:#eef2ff; --chip-text:#1f2937; --fs-base:{font_px}; }}
-html, body {{ background: var(--bg) !important; font-size: var(--fs-base); }}
-section.main > div.block-container{{ background: var(--card); border-radius: 14px; padding: 18px 22px; box-shadow: 0 2px 16px rgba(0,0,0,.04); }}
+
+/* ── 컬러 토큰 ───────────────────────────────────────────── */
+:root{{
+  /* 배경과 카드 */
+  --bg:#f5f7fb;                /* 페이지 바탕(저채도 회색) */
+  --sidebar-bg:#eef2f7;        /* 사이드바 */
+  --card:#ffffff;              /* 메인 카드 */
+
+  /* 텍스트 & 라인 */
+  --text:#0b1220;
+  --muted:#4b5563;
+  --ring:#d1d5db;              /* 구분선 기본 */
+
+  /* 포커스 & 강조 */
+  --focus:#6366f1;             /* 인디고 */
+  --focus-shadow: rgba(99,102,241,.20);
+
+  /* 입력창(비활성 기본값) */
+  --field-bg:#f1f5f9;          /* 연회청 */
+  --field-border:#cbd5e1;      /* 테두리 */
+  --placeholder:#64748b;       /* 플레이스홀더 */
+
+  /* 버튼/칩 */
+  --btn-bg:#fef08a; --btn-text:#0b1220; --btn-bg-hover:#fde047;
+  --chip:#eef2ff; --chip-text:#1f2937;
+
+  /* 글자 크기 */
+  --fs-base:{font_px};
+}}
+
+/* ── 전역 레이아웃 ───────────────────────────────────────── */
+html, body {{
+  background: var(--bg) !important;
+  font-size: var(--fs-base);
+}}
+
+section.main > div.block-container{{
+  background: var(--card);
+  border-radius: 14px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.05);
+}}
+
 h1,h2,h3,h4,h5{{ color:var(--text)!important; font-weight:800 }}
-div[data-testid="stSidebar"]{{ background: var(--sidebar-bg)!important; border-right:1px solid var(--ring)!important; }}
-.stButton>button, .stDownloadButton>button{{ background:var(--btn-bg)!important; color:var(--btn-text)!important; border-radius:12px!important;
-  padding:10px 16px!important; font-weight:800!important; box-shadow:0 6px 16px rgba(0,0,0,.08)!important; transition:all .15s ease; }}
-.stButton>button:hover{{ background:var(--btn-bg-hover)!important; transform:translateY(-1px) }}
-.badge{{display:inline-block; padding:4px 10px; border-radius:999px; background:var(--chip); color:var(--chip-text); font-size:0.85rem;}}
+p, li, label, span{{ color:var(--text); }}
+
+div[data-testid="stSidebar"]{{
+  background: var(--sidebar-bg)!important;
+  border-right:1px solid var(--ring)!important;
+}}
+
+/* ── 버튼 ───────────────────────────────────────────────── */
+.stButton>button, .stDownloadButton>button{{
+  background:var(--btn-bg)!important;
+  color:var(--btn-text)!important;
+  border-radius:12px!important;
+  padding:10px 16px!important;
+  font-weight:800!important;
+  box-shadow:0 6px 16px rgba(0,0,0,.08)!important;
+  border:0!important;
+  transition:all .15s ease;
+}}
+.stButton>button:hover{{
+  background:var(--btn-bg-hover)!important;
+  transform:translateY(-1px)
+}}
+.badge{{
+  display:inline-block; padding:4px 10px; border-radius:999px;
+  background:var(--chip); color:var(--chip-text); font-size:0.85rem;
+}}
+
+/* ── 입력 컴포넌트 공통(텍스트/숫자/에어리어/셀렉트/멀티셀렉트) ── */
+.stTextInput input,
+.stNumberInput input,
+.stTextArea textarea,
+.stSelectbox [role="combobox"],
+.stMultiSelect [role="combobox"],
+.stDateInput input{{
+  background: var(--field-bg) !important;
+  border: 2px solid var(--field-border) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  padding: 10px 12px !important;
+  box-shadow: none !important;
+  outline: none !important;
+}}
+
+/* 플레이스홀더 가독성 */
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder,
+.stDateInput input::placeholder{{
+  color: var(--placeholder) !important; opacity:1 !important;
+}}
+
+/* 라벨(제목) 대비 향상 */
+label, .stMarkdown p > strong {{
+  color:#111827 !important; font-weight:700;
+}}
+
+/* 포커스(활성) 상태: 진한 테두리 + 글로우 + 흰 배경 */
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stTextArea textarea:focus,
+.stSelectbox [role="combobox"]:focus,
+.stMultiSelect [role="combobox"]:focus,
+.stDateInput input:focus{{
+  border-color: var(--focus) !important;
+  box-shadow: 0 0 0 3px var(--focus-shadow) !important;
+  background:#ffffff !important;
+}}
+
+/* 비활성/읽기전용도 테두리 보이도록 */
+.stTextInput input[disabled],
+.stNumberInput input[disabled],
+.stTextArea textarea[disabled]{{
+  opacity: .85 !important;
+  background: #eef2f6 !important;
+  border-color: #d8dee6 !important;
+}}
+
+/* ── 셀렉트 드롭다운/팝오버 톤 통일 ─────────────────────── */
+[data-baseweb="popover"] {{
+  background:#ffffff !important;
+  border:1px solid #e5e7eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08) !important;
+}}
+[data-baseweb="menu"]   {{ background:#ffffff !important; }}
+[data-baseweb="menu"] li {{ color:var(--text) !important; }}
+[data-baseweb="menu"] li[aria-selected="true"] {{
+  background:#eef2ff !important; color:#1f2937 !important;
+}}
+
+/* ── 라디오/체크박스 클릭 영역 살짝 키우기 ─────────────── */
+.stRadio > div > label, .stCheckbox > label{{ padding:4px 6px; border-radius:8px; }}
+.stRadio > div > label:hover, .stCheckbox > label:hover{{ background:#f3f4f6; }}
+
+/* ── 슬라이더 대비 개선 ─────────────────────────────────── */
+.stSlider > div[data-baseweb="slider"] > div > div {{
+  background:#e2e8f0 !important;          /* 트랙 */
+}}
+.stSlider [role="slider"]{{
+  border:2px solid var(--focus) !important;/* 핸들 */
+  box-shadow:0 0 0 3px rgba(99,102,241,.15) !important;
+}}
+
+/* ── 테이블/데이터프레임 헤더 대비 ─────────────────────── */
+[data-testid="stTable"] th, .stDataFrame thead tr th{{
+  background:#f1f5fb !important;
+  color:#111827 !important;
+  font-weight:700 !important;
+  border-bottom:1px solid #e5e7eb !important;
+}}
+
+/* ── 코드/마크다운 내부 링크 색감 살짝 강조 ─────────────── */
+a, .markdown-text-container a{{
+  color:#4338ca !important; text-decoration: underline;
+}}
+a:hover{{ color:#3730a3 !important; }}
+
+/* ── 스크롤바 은은하게 ─────────────────────────────────── */
+*::-webkit-scrollbar{{ width: 10px; height:10px; }}
+*::-webkit-scrollbar-thumb{{
+  background:#cbd5e1; border-radius: 999px; border:2px solid transparent; background-clip:padding-box;
+}}
+*::-webkit-scrollbar-track{{ background:transparent; }}
 </style>
 """
 
@@ -877,6 +1035,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
