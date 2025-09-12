@@ -88,7 +88,7 @@ def theme_css(font_px="16px"):
     return f"""
 <style>
 html {{ color-scheme: light !important; }}
-:root{{ --bg:#ffffff; --sidebar-bg:#f6f7fb; --card:#ffffff; --text:#0b1220; --ring:#e5e7eb;
+:root{{ --bg:#f5f7fb; --sidebar-bg:#eef2f7; --card:#ffffff; --text:#0b1220; --ring:#e5e7eb;
 --btn-bg:#fef08a; --btn-text:#0b1220; --btn-bg-hover:#fde047; --chip:#eef2ff; --chip-text:#1f2937; --fs-base:{font_px}; }}
 html, body {{ background: var(--bg) !important; font-size: var(--fs-base); }}
 section.main > div.block-container{{ background: var(--card); border-radius: 14px; padding: 18px 22px; box-shadow: 0 2px 16px rgba(0,0,0,.04); }}
@@ -877,5 +877,6 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
