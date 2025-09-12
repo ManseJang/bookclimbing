@@ -88,33 +88,14 @@ FONT_SIZES = {"작게":"14px","보통":"16px","크게":"18px"}
 def theme_css(font_px="16px"):
     return f"""
 <style>
-/* 시스템 테마 고정 */
 html {{ color-scheme: light !important; }}
-
-/* ── 컬러 토큰 ───────────────────────────────────────────── */
 :root{{
-  --bg:#f5f7fb;                /* 페이지 바탕 */
-  --sidebar-bg:#eef2f7;        /* 사이드바 */
-  --card:#ffffff;              /* 메인 카드 */
-
-  --text:#0b1220;              /* 텍스트 */
-  --muted:#4b5563;
-  --ring:#d1d5db;              /* 구분선 */
-
-  --focus:#6366f1;             /* (일반 입력용) 포커스 컬러 */
-  --focus-shadow: rgba(99,102,241,.20);
-
-  --field-bg:#f1f5f9;          /* 입력 배경 */
-  --field-border:#cbd5e1;      /* 입력 테두리 */
-  --placeholder:#64748b;       /* 플레이스홀더 */
-
+  --bg:#ffffff; --sidebar-bg:#f6f7fb; --card:#ffffff; --text:#0b1220; --ring:#e5e7eb;
   --btn-bg:#fef08a; --btn-text:#0b1220; --btn-bg-hover:#fde047;
   --chip:#eef2ff; --chip-text:#1f2937;
-
   --fs-base:{font_px};
 }}
 
-/* ── 전역 레이아웃 ───────────────────────────────────────── */
 html, body {{
   background: var(--bg) !important;
   font-size: var(--fs-base);
@@ -124,18 +105,19 @@ section.main > div.block-container{{
   background: var(--card);
   border-radius: 14px;
   padding: 18px 22px;
-  box-shadow: 0 2px 16px rgba(0,0,0,.05);
+  box-shadow: 0 2px 16px rgba(0,0,0,.04);
 }}
 
-h1,h2,h3,h4,h5{{ color:var(--text)!important; font-weight:800 }}
-p, li, label, span{{ color:var(--text); }}
+h1,h2,h3,h4,h5{{
+  color:var(--text)!important;
+  font-weight:800
+}}
 
 div[data-testid="stSidebar"]{{
   background: var(--sidebar-bg)!important;
   border-right:1px solid var(--ring)!important;
 }}
 
-/* ── 버튼 ───────────────────────────────────────────────── */
 .stButton>button, .stDownloadButton>button{{
   background:var(--btn-bg)!important;
   color:var(--btn-text)!important;
@@ -143,143 +125,26 @@ div[data-testid="stSidebar"]{{
   padding:10px 16px!important;
   font-weight:800!important;
   box-shadow:0 6px 16px rgba(0,0,0,.08)!important;
-  border:0!important;
   transition:all .15s ease;
 }}
+
 .stButton>button:hover{{
   background:var(--btn-bg-hover)!important;
   transform:translateY(-1px)
 }}
+
 .badge{{
   display:inline-block; padding:4px 10px; border-radius:999px;
   background:var(--chip); color:var(--chip-text); font-size:0.85rem;
 }}
 
-/* ── 입력 컴포넌트(텍스트/숫자/에어리어/날짜) ───────────────── */
-.stTextInput input,
-.stNumberInput input,
-.stTextArea textarea,
-.stDateInput input{{
-  background: var(--field-bg) !important;
-  border: 2px solid var(--field-border) !important;
-  border-radius: 10px !important;
-  color: var(--text) !important;
-  padding: 10px 12px !important;
-  box-shadow: none !important;
-  outline: none !important;
+/* 입력창 테두리 강조 (보라색 효과 제거) */
+.stTextInput>div>div>input,
+.stTextArea textarea {{
+  border: 2px solid var(--ring) !important;
+  border-radius: 8px !important;
+  padding: 8px 10px !important;
 }}
-.stTextInput input::placeholder,
-.stTextArea textarea::placeholder,
-.stDateInput input::placeholder{{
-  color: var(--placeholder) !important; opacity:1 !important;
-}}
-
-/* 일반 입력 포커스: 보라 포커스 유지(원 요청) */
-.stTextInput input:focus,
-.stNumberInput input:focus,
-.stTextArea textarea:focus,
-.stDateInput input:focus{{
-  border-color: var(--focus) !important;
-  box-shadow: 0 0 0 3px var(--focus-shadow) !important;
-  background:#ffffff !important;
-}}
-
-/* 비활성/읽기전용도 테두리 보이도록 */
-.stTextInput input[disabled],
-.stNumberInput input[disabled],
-.stTextArea textarea[disabled]{{
-  opacity: .85 !important;
-  background: #eef2f6 !important;
-  border-color: #d8dee6 !important;
-}}
-
-/* ── SELECTBOX / MULTISELECT (괄호형 효과 & 보라 포커스 제거) ─────────
-   Base Web의 Select는 내부 div에 focus-within 시 box-shadow/outline이 생기면서
-   가운데가 밝고 양쪽이 진해 보이는 '()' 같은 효과가 납니다.
-   아래 규칙으로 그 효과와 보라색 포커스를 완전히 제거합니다.             */
-.stSelectbox [role="combobox"],
-.stMultiSelect [role="combobox"]{{
-  background:#ffffff !important;                 /* 선택 영역은 흰색으로 또렷하게 */
-  border: 2px solid var(--field-border) !important;
-  border-radius: 10px !important;
-  color: var(--text) !important;
-  padding: 10px 12px !important;
-  box-shadow: none !important;                   /* 내부 그림자 제거 → () 효과 제거 */
-  outline: none !important;
-}}
-/* hover 시에도 괄호형 그림자 금지 */
-.stSelectbox [role="combobox"]:hover,
-.stMultiSelect [role="combobox"]:hover{{
-  box-shadow:none !important;
-  border-color: var(--field-border) !important;
-}}
-
-/* 포커스(클릭) 시에도 보라색/글로우 제거, 테두리 유지 */
-.stSelectbox [role="combobox"]:focus,
-.stSelectbox [role="combobox"]:focus-within,
-.stMultiSelect [role="combobox"]:focus,
-.stMultiSelect [role="combobox"]:focus-within{{
-  outline:none !important;
-  box-shadow:none !important;                    /* 보라 글로우 제거 */
-  border-color: var(--field-border) !important;  /* 테두리는 동일 톤 유지 */
-  background:#ffffff !important;
-}}
-
-/* Base Web Select 컨테이너 자체에 걸리는 포커스 글로우도 제거 */
-[data-baseweb="select"]:focus,
-[data-baseweb="select"]:focus-within,
-[data-baseweb="select"] div:focus,
-[data-baseweb="select"] div:focus-within{{
-  box-shadow:none !important;
-  outline:none !important;
-}}
-
-/* 드롭다운/팝오버 톤 */
-[data-baseweb="popover"] {{
-  background:#ffffff !important;
-  border:1px solid #e5e7eb !important;
-  border-radius: 10px !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,.08) !important;
-}}
-[data-baseweb="menu"]   {{ background:#ffffff !important; }}
-[data-baseweb="menu"] li {{ color:var(--text) !important; }}
-[data-baseweb="menu"] li[aria-selected="true"] {{
-  background:#eef2ff !important; color:#1f2937 !important;
-}}
-
-/* ── 라디오/체크박스 클릭 영역 ───────────────────────────── */
-.stRadio > div > label, .stCheckbox > label{{ padding:4px 6px; border-radius:8px; }}
-.stRadio > div > label:hover, .stCheckbox > label:hover{{ background:#f3f4f6; }}
-
-/* ── 슬라이더 대비 ───────────────────────────────────────── */
-.stSlider > div[data-baseweb="slider"] > div > div {{
-  background:#e2e8f0 !important;          /* 트랙 */
-}}
-.stSlider [role="slider"]{{
-  border:2px solid var(--field-border) !important;/* 핸들: 보라 제거 */
-  box-shadow:none !important;
-}}
-
-/* ── 테이블/데이터프레임 헤더 ───────────────────────────── */
-[data-testid="stTable"] th, .stDataFrame thead tr th{{
-  background:#f1f5fb !important;
-  color:#111827 !important;
-  font-weight:700 !important;
-  border-bottom:1px solid #e5e7eb !important;
-}}
-
-/* ── 링크 색감 ──────────────────────────────────────────── */
-a, .markdown-text-container a{{
-  color:#4338ca !important; text-decoration: underline;
-}}
-a:hover{{ color:#3730a3 !important; }}
-
-/* ── 스크롤바 ───────────────────────────────────────────── */
-*::-webkit-scrollbar{{ width: 10px; height:10px; }}
-*::-webkit-scrollbar-thumb{{
-  background:#cbd5e1; border-radius: 999px; border:2px solid transparent; background-clip:padding-box;
-}}
-*::-webkit-scrollbar-track{{ background:transparent; }}
 </style>
 """
 
@@ -1059,6 +924,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
