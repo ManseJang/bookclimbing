@@ -885,7 +885,7 @@ def main():
     if "level" not in st.session_state: st.session_state.level="기본"
 
     with st.sidebar:
-        st.link_button("ℹ️ 프로그램 사용법", "https://www.canva.com")
+        st.link_button("ℹ️ 프로그램 사용법", "https://keithharingulsan.my.canva.site/bookclimbing")
         student_panel()
         st.markdown("### 메뉴")
         menu_labels={
@@ -906,9 +906,9 @@ def main():
 
         st.markdown("---")
         try:
-            st.link_button("🌐 독서감상문 공유", "http://wwww.example.com")
+            st.link_button("🌐 독서감상문 공유", "https://padlet.com/jangseman12/padlet-hgydovnuoecbyhi0")
         except Exception:
-            st.markdown('<a class="linklike-btn" href="http://wwww.example.com" target="_blank">🌐 독서감상문 공유</a>', unsafe_allow_html=True)
+            st.markdown('<a class="linklike-btn" href="https://padlet.com/jangseman12/padlet-hgydovnuoecbyhi0" target="_blank">🌐 독서감상문 공유</a>', unsafe_allow_html=True)
 
         if st.button("처음으로"): st.session_state.clear(); st.rerun()
 
@@ -924,6 +924,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
