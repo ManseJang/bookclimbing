@@ -1,19 +1,19 @@
-# 북클라이밍 - 독서의 정상에 도전하라 – 2025-05-08
-# rev.OCT-14: Reliable per-student query (no JOIN needed for exact id) + inputs normalization
+# 북클라이밍 
+
 import streamlit as st, requests, re, json, base64, time, mimetypes, uuid, datetime, random, os, io, sqlite3
 import pandas as pd
 from collections import Counter
 from bs4 import BeautifulSoup
 from openai import OpenAI
 
-# ───── API 키 ─────
+#  API 키
 OPENAI_API_KEY       = st.secrets["OPENAI_API_KEY"]
 NAVER_CLIENT_ID      = st.secrets["NAVER_CLIENT_ID"]
 NAVER_CLIENT_SECRET  = st.secrets["NAVER_CLIENT_SECRET"]
 NAVER_OCR_SECRET     = st.secrets.get("NAVER_OCR_SECRET","")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ───── GitHub 설정(선택) ─────
+# GitHub 설정
 GITHUB_TOKEN     = st.secrets.get("GITHUB_TOKEN",        "ghp_")
 GH_REPO          = st.secrets.get("GH_REPO",             "ManseJang/bookclimbing")
 GH_BRANCH        = st.secrets.get("GH_BRANCH",           "main")
@@ -68,7 +68,7 @@ def gh_append_jsonl(path:str, record:dict):
                            json=payload, timeout=20)
     return (put_res.status_code in (200,201), put_res.text[:200])
 
-# ───── 유틸 ─────
+# 유틸 
 def clean_html(t): return re.sub(r"<.*?>","",t or "")
 def strip_fence(t): return re.sub(r"^```(json)?|```$", "", t.strip(), flags=re.M)
 def gpt(msg,t=0.5,mx=800):
@@ -82,7 +82,7 @@ def to_data_url(url):
         except Exception as e:
             st.warning(f"표지 다운로드 재시도… ({e})"); time.sleep(2)
 
-# ───── 테마 ─────
+# 테마 
 FONT_SIZES = {"작게":"14px","보통":"16px","크게":"18px"}
 
 def theme_css(font_px="16px"):
@@ -138,7 +138,7 @@ div[data-testid="stSidebar"]{{
   background:var(--chip); color:var(--chip-text); font-size:0.85rem;
 }}
 
-/* 입력창 테두리 강조 (보라색 효과 제거) */
+
 .stTextInput>div>div>input,
 .stTextArea textarea {{
   border: 4px solid var(--ring) !important;
@@ -148,7 +148,7 @@ div[data-testid="stSidebar"]{{
 </style>
 """
 
-# ───── 안전 필터 ─────
+# 안전 필터 
 ADULT_PATTERNS = [r"\b19\s*금\b","청소년\s*이용\s*불가","성인","야설","에로","포르노","노출","선정적","음란","야한","Adult","Erotic","Porn","R-?rated","BL\s*성인","성(관계|행위|묘사)","무삭제\s*판","금서\s*해제"]
 BAD_WORDS = ["씨발","시발","병신","ㅄ","ㅂㅅ","좆","개새끼","새끼","좆같","ㅈ같","니애미","느금","개같","꺼져","죽어","염병","씹","sex","porn"]
 ADULT_RE = re.compile("|".join(ADULT_PATTERNS), re.I)
@@ -165,7 +165,7 @@ def rewrite_polite(text:str)->str:
     try: return gpt([{"role":"user","content":f"다음 문장을 초등학생에게 어울리는 바르고 고운말로 바꿔줘. 의미는 유지하고 공격적 표현은 모두 제거:\n{text}"}],0.2,120)
     except: return "바르고 고운말을 사용해 다시 표현해 보세요."
 
-# ───── NAVER Books & OCR ─────
+# NAVER Books & OCR 
 def nv_search(q):
     hdr={"X-Naver-Client-Id":NAVER_CLIENT_ID,"X-Naver-Client-Secret":NAVER_CLIENT_SECRET}
     res=requests.get("https://openapi.naver.com/v1/search/book.json",headers=hdr,params={"query":q,"display":10}).json().get("items",[])
@@ -193,7 +193,7 @@ def nv_ocr(img):
     try: return " ".join(f["inferText"] for f in res["images"][0]["fields"])
     except: return "(OCR 파싱 오류)"
 
-# ───── 퀴즈 생성 보조 ─────
+#  퀴즈 생성 보조 
 def make_quiz(raw:str)->list:
     m=re.search(r"\[.*]", strip_fence(raw), re.S)
     if not m: return []
@@ -214,13 +214,13 @@ def make_quiz(raw:str)->list:
         quiz.append({"question":it["question"],"options":opts,"correct_answer":opts.index(correct_txt)+1})
     return quiz if len(quiz)==5 else []
 
-# ───── 난이도 파라미터 ─────
+# 난이도 조절
 def level_params(level:str):
     if level=="쉬움": return dict(temp=0.25, explain_len=900, debate_rounds=4, language="아주 쉬운 말", penalties=False)
     if level=="심화": return dict(temp=0.5, explain_len=1700, debate_rounds=6, language="정확하고 논리적인 말", penalties=True)
     return dict(temp=0.35, explain_len=1300, debate_rounds=6, language="친절한 말", penalties=False)
 
-# ───── 이미지 유틸 ─────
+# 이미지
 def load_intro_path():
     for name in ["asset/intro.png","asset/intro.jpg","asset/intro.jpeg","asset/intro.webp"]:
         if os.path.exists(name): return name
@@ -230,7 +230,7 @@ def render_img_percent(path:str, percent:float=0.7):
     mime=mimetypes.guess_type(path)[0] or "image/png"
     st.markdown(f'<p style="text-align:center;"><img src="data:{mime};base64,{b64}" style="width:{int(percent*100)}%; border-radius:12px;"/></p>',unsafe_allow_html=True)
 
-# ───── 토론 주제 추천 ─────
+#  토론 주제 추천
 def _normalize_topic_form(s: str, prefer_ought: bool = False) -> str:
     s = (s or "").strip()
     s = re.sub(r"[?？]+$", "", s)
@@ -256,7 +256,7 @@ def recommend_topics(title, syn, level, avoid:list, tries=2):
             return [_normalize_topic_form(arr[0], False), _normalize_topic_form(arr[1], True)]
     return ["약속을 지켜야 한다.", "힘들 때 도움을 요청하는 것이 옳다."]
 
-# ───── 관련 낱말 ─────
+#  관련 낱말 
 def related_words(word:str, level:str)->dict:
     prompt=(f"단어 '{word}' 관련 낱말을 초등 {level} 수준으로 JSON만 출력:"
             "{\"meaning\":\"쉬운뜻1문장\",\"synonyms\":[5~8],\"antonyms\":[5~8],\"examples\":[\"문장1\",\"문장2\"]}")
@@ -271,7 +271,7 @@ def related_words(word:str, level:str)->dict:
     except:
         return {"meaning":"(설명 생성 실패)","synonyms":[],"antonyms":[],"examples":[]}
 
-# ───── TXT 생성 ─────
+#  독서토론 TXT 생성 
 def build_debate_txt_bytes(title:str, topic:str, user_side:str, transcript:list, score:dict, feedback_text:str):
     txt="독서토론 기록\n\n"
     txt+=f"[책] {title}\n[주제] {topic}\n[학생 입장] {user_side}\n\n"
@@ -280,7 +280,7 @@ def build_debate_txt_bytes(title:str, topic:str, user_side:str, transcript:list,
     txt+="[총평]\n"+(feedback_text or "")+"\n\n[토론 로그]\n"+"\n".join(transcript)
     return txt.encode("utf-8"), "text/plain", "debate_record.txt"
 
-# ───── 데이터 (SQLite) ─────
+#  데이터 (SQLite) 
 DB_PATH = "classdb.db"
 def _sqlite_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -325,7 +325,7 @@ def db_save_event(student_id, page, payload_dict):
     except Exception as e:
         st.warning(f"기록 저장 오류: {e}")
 
-# ── (중요 수정) 대시보드 조회: 정확히 지정되면 events를 student_id로 직접 검색
+#  대시보드 조회: 정확히 지정되면 events를 student_id로 직접 검색
 def db_dashboard(year=None, school=None, grade=None, klass=None, number=None):
     school = (school or "").strip()
     conn = _sqlite_conn()
@@ -366,7 +366,7 @@ def db_dashboard(year=None, school=None, grade=None, klass=None, number=None):
                      "page":page,"payload":d,"student_id":sid})
     return pd.DataFrame(data)
 
-# ───── 저장 래퍼 (정규화 포함) ─────
+#  저장 
 def _norm_school(s:str)->str:
     return (s or "").strip()
 
@@ -391,7 +391,7 @@ def save_event(page:str, payload:dict):
     db_save_event(sid, page, payload)
     st.toast(f"기록 저장: {page}", icon="💾")
 
-# ───── 추천 도서 ─────
+#  추천 도서 
 def fetch_grade_recs(grade:int):
     qs = [f"초등 {grade}학년 동화 추천", f"초등 {grade}학년 소설 추천"]
     seen = set(); out=[]
@@ -442,7 +442,7 @@ def render_reco_table(items:list):
                 st.rerun()
         st.markdown("<div style='height:8px;border-bottom:1px dashed #e5e7eb;'></div>", unsafe_allow_html=True)
 
-# ───── 학생 패널 ─────
+#  학생 패널 
 def student_panel():
     if "ui_font_size_choice" not in st.session_state:
         st.session_state["ui_font_size_choice"] = "보통"
@@ -471,7 +471,7 @@ def student_panel():
     if _gh_enabled():
         st.markdown("<span class='badge'>GitHub 동기화: 활성</span>", unsafe_allow_html=True)
 
-# ───── PAGE 1 : 책검색 & 표지대화 ─────
+#  PAGE 1 : 책검색 & 표지대화 
 def page_book():
     st.markdown('<span class="badge">난이도(모든 활동 적용)</span>', unsafe_allow_html=True)
     level = st.selectbox("난이도", ["쉬움","기본","심화"], index=["쉬움","기본","심화"].index(st.session_state.get("level","기본")))
@@ -485,7 +485,7 @@ def page_book():
     st.header("📘 1) 책 찾기 & 표지 이야기")
     if st.sidebar.button("활동 다시하기"): st.session_state.clear(); st.rerun()
 
-    # ── 이달의 추천 도서
+    #  이달의 추천 도서
     rec_col, _ = st.columns([1,3])
     with rec_col:
         if st.button("🎁 이달의 추천 도서"):
@@ -505,7 +505,7 @@ def page_book():
         else:
             st.info("추천 결과가 없어요. [🔎 추천 불러오기]를 눌러 주세요.")
 
-    # ── 일반 검색
+    #  일반 검색
     q=st.text_input("책 제목·키워드")
     if st.button("🔍 검색") and q.strip():
         result=nv_search(q.strip())
@@ -543,7 +543,7 @@ def page_book():
         if st.button("다음 단계 ▶ 2) 낱말 탐정"):
             st.session_state.current_page="단어 알아보기"; st.rerun()
 
-# ───── PAGE 2 : 단어 알아보기 ─────
+#  PAGE 2 : 단어 알아보기 
 def page_vocab():
     st.header("🧩 2) 낱말 탐정")
     if "selected_book" not in st.session_state:
@@ -588,7 +588,7 @@ def page_vocab():
     if st.button("다음 단계 ▶ 3) 이야기 퀴즈"):
         st.session_state.current_page="독서 퀴즈"; st.rerun()
 
-# ───── PAGE 3 : 퀴즈 ─────
+#  PAGE 3 : 퀴즈 
 def page_quiz():
     st.header("📝 3) 이야기 퀴즈")
     if "selected_book" not in st.session_state:
@@ -641,7 +641,7 @@ def page_quiz():
     if st.button("다음 단계 ▶ 4) 독서 생각 나누기"):
         st.session_state.current_page="독서 토론"; st.rerun()
 
-# ───── PAGE 4 : 독서 토론 ─────
+#  PAGE 4 : 독서 토론 
 def page_discussion():
     st.header("🗣️ 4) 독서 생각 나누기")
     if "selected_book" not in st.session_state:
@@ -752,7 +752,7 @@ def page_discussion():
                 data, mime, fname = build_debate_txt_bytes(title, st.session_state.debate_topic, st.session_state.user_side, transcript, score, st.session_state.get("user_feedback_text",""))
                 st.download_button("🧾 토론 기록 TXT 저장", data=data, file_name=fname, mime=mime, key="debate_txt_dl")
 
-# ───── PAGE 5 : 감상문 피드백 ─────
+# PAGE 5 : 감상문 피드백 
 def page_feedback():
     st.header("✍️ 5) 독서 생각 성찰하기")
     if st.sidebar.button("피드백 초기화"): st.session_state.pop("essay",""); st.session_state.pop("ocr_file",""); st.rerun()
@@ -777,7 +777,7 @@ def page_feedback():
         st.subheader("피드백 결과"); st.write(fb)
         save_event("essay", {"title": title, "essay": essay, "feedback": fb, "level": st.session_state.level})
 
-# ───── PAGE 6 : 포트폴리오 & 대시보드 ─────
+#  PAGE 6 : 포트폴리오 & 대시보드 
 def page_portfolio_dashboard():
     st.header("🎒 6) 나의 독서 앨범")
     st.caption("먼저 학년도/학교/학년/반/번호를 고르면, 그 아래에 기록을 정리해 보여줍니다. 번호가 0이면 학급 전체 집계입니다.")
@@ -874,7 +874,7 @@ def page_portfolio_dashboard():
             st.download_button("📥 감상문+피드백 TXT 저장", data=txt.encode("utf-8"),
                                file_name="essay_feedback.txt", mime="text/plain", key="essay_txt_dl")
 
-# ───── MAIN ─────
+#  MAIN 
 def main():
     st.set_page_config("북클라이밍","📚",layout="wide")
     font_choice = st.session_state.get("ui_font_size_choice","보통")
@@ -924,6 +924,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
