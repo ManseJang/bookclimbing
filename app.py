@@ -879,7 +879,7 @@ def main():
     st.set_page_config("북클라이밍","📚",layout="wide")
     font_choice = st.session_state.get("ui_font_size_choice","보통")
     st.markdown(theme_css(FONT_SIZES.get(font_choice,"16px")), unsafe_allow_html=True)
-    st.title("북클라이밍: 자기주도적 독서 습관 기르기")
+    st.title("북클라이밍: 자기주도적 독서 습관 기르기[초등(3~6학년)]")
 
     if "current_page" not in st.session_state: st.session_state.current_page="책 검색"
     if "level" not in st.session_state: st.session_state.level="기본"
@@ -924,6 +924,7 @@ def main():
 
 if __name__=="__main__":
     main()
+
 
 
 
